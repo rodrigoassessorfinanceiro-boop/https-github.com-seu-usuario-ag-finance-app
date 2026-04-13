@@ -35,6 +35,11 @@ def init_db():
     except sqlite3.OperationalError:
         pass
         
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN username TEXT")
+    except sqlite3.OperationalError:
+        pass
+        
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS improvements (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,18 +87,23 @@ def _hash_password(password):
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
-def create_user(name, email, password, phone="", address=""):
+def create_user(name, email, password, phone="", address="", username=""):
     try:
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
+        
+        if username:
+            cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+            if cursor.fetchone():
+                return False, "Este nome de usuário já está em uso."
         
         # Atribuir como admin automaticamente se for o email de env
         admin_auth_mail = os.environ.get("ADMIN_EMAIL", "rodrigo@agfinance.com")
         is_admin = True if email.lower().strip() == admin_auth_mail.lower().strip() else False
 
         cursor.execute(
-            "INSERT INTO users (name, email, password, plan_active, onboarded, is_admin, phone, address) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (name, email, _hash_password(password), True, False, is_admin, phone, address)
+            "INSERT INTO users (name, email, password, plan_active, onboarded, is_admin, phone, address, username) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (name, email, _hash_password(password), True, False, is_admin, phone, address, username)
         )
         conn.commit()
         conn.close()
@@ -103,10 +113,10 @@ def create_user(name, email, password, phone="", address=""):
     except Exception as e:
         return False, f"Erro ao criar usuário: {str(e)}"
 
-def verify_login(email, password):
+def verify_login(identifier, password):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, password, plan_active, onboarded, is_admin FROM users WHERE email = ?", (email,))
+    cursor.execute("SELECT id, name, password, plan_active, onboarded, is_admin FROM users WHERE email = ? OR username = ?", (identifier, identifier))
     user = cursor.fetchone()
     conn.close()
     
@@ -140,7 +150,7 @@ def get_dashboard_metrics():
     cursor.execute("SELECT COUNT(*) FROM users WHERE onboarded = 1")
     onboarded_users = cursor.fetchone()[0]
     
-    cursor.execute("SELECT id, name, email, plan_active, onboarded, is_admin, phone, address FROM users ORDER BY id DESC")
+    cursor.execute("SELECT id, name, email, plan_active, onboarded, is_admin, phone, address, username FROM users ORDER BY id DESC")
     all_users = cursor.fetchall()
     conn.close()
     return total_users, onboarded_users, all_users

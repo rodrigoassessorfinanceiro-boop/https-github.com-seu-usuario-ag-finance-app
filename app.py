@@ -24,7 +24,7 @@ st.markdown("Crie sua conta ou faça login para acessar a inteligência financei
 tab_login, tab_cadastro = st.tabs(["🔒 Entrar", "💳 Cadastre-se"])
 
 with tab_login:
-    email_login = st.text_input("E-mail corporativo ou pessoal")
+    email_login = st.text_input("E-mail ou Nome de Usuário")
     senha_login = st.text_input("Senha", type="password", key="login_pass")
     if st.button("Acessar Plataforma"):
         sucesso, user = verify_login(email_login, senha_login)
@@ -38,6 +38,7 @@ with tab_login:
 with tab_cadastro:
     st.subheader("1. Dados para a Conta")
     nome_cad = st.text_input("Nome Completo")
+    username_cad = st.text_input("Nome de Usuário (Ex: nome.sobrenome)")
     email_cad = st.text_input("Crie um E-mail de acesso")
     telefone_cad = st.text_input("Número de Telefone (WhatsApp)")
     endereco_cad = st.text_input("Endereço Completo")
@@ -52,12 +53,15 @@ with tab_cadastro:
     cvc = col2.text_input("CVC", type="password", placeholder="***")
     
     if st.button("Concluir Assinatura AG Finance", type="primary", use_container_width=True):
-        if not nome_cad or not email_cad or not telefone_cad or not endereco_cad or not senha_cad or not num_cartao or not validade or not cvc:
+        username_formatado = username_cad.strip().lower() if username_cad else ""
+        if not nome_cad or not username_formatado or not email_cad or not telefone_cad or not endereco_cad or not senha_cad or not num_cartao or not validade or not cvc:
             st.warning("⚠️ Preencha todos os campos do formulário.")
+        elif " " in username_formatado:
+            st.warning("⚠️ O nome de usuário não pode conter espaços. Use ponto (ex: joao.silva)")
         else:
             with st.spinner("💳 Processando pagamento na operadora..."):
                 time.sleep(2)
-                sucesso, msg = create_user(nome_cad, email_cad, senha_cad, telefone_cad, endereco_cad)
+                sucesso, msg = create_user(nome_cad, email_cad, senha_cad, telefone_cad, endereco_cad, username_formatado)
             if sucesso:
                 st.success("🎉 Pagamento Aprovado! Bem-vindo(a) à AG Finance.")
                 time.sleep(1.5)
