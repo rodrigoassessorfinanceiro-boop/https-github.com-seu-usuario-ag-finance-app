@@ -1,0 +1,223 @@
+import sqlite3
+import hashlib
+import bcrypt
+import os
+
+DB_FILE = "users.db"
+
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            plan_active BOOLEAN NOT NULL,
+            onboarded BOOLEAN NOT NULL DEFAULT 0,
+            is_admin BOOLEAN NOT NULL DEFAULT 0
+        )
+    ''')
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN onboarded BOOLEAN NOT NULL DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass # Coluna já existe
+        
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+        
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS improvements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'Pendente'
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS chat_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS chat_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id INTEGER,
+            user_id INTEGER NOT NULL,
+            role TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id),
+            FOREIGN KEY (session_id) REFERENCES chat_sessions (id)
+        )
+    ''')
+    try:
+        cursor.execute("ALTER TABLE chat_messages ADD COLUMN session_id INTEGER")
+        cursor.execute("SELECT DISTINCT user_id FROM chat_messages WHERE session_id IS NULL")
+        orphans = cursor.fetchall()
+        for orph in orphans:
+            uid = orph[0]
+            cursor.execute("INSERT INTO chat_sessions (user_id, title) VALUES (?, ?)", (uid, "Papo Original"))
+            new_sess = cursor.lastrowid
+            cursor.execute("UPDATE chat_messages SET session_id = ? WHERE user_id = ? AND session_id IS NULL", (new_sess, uid))
+    except sqlite3.OperationalError:
+        pass
+        
+    conn.commit()
+    conn.close()
+
+def _hash_password(password):
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+def create_user(name, email, password):
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        
+        # Atribuir como admin automaticamente se for o email de env
+        admin_auth_mail = os.environ.get("ADMIN_EMAIL", "rodrigo@agfinance.com")
+        is_admin = True if email.lower().strip() == admin_auth_mail.lower().strip() else False
+
+        cursor.execute(
+            "INSERT INTO users (name, email, password, plan_active, onboarded, is_admin) VALUES (?, ?, ?, ?, ?, ?)",
+            (name, email, _hash_password(password), True, False, is_admin)
+        )
+        conn.commit()
+        conn.close()
+        return True, "Usuário criado com sucesso!"
+    except sqlite3.IntegrityError:
+        return False, "Este email já está cadastrado."
+    except Exception as e:
+        return False, f"Erro ao criar usuário: {str(e)}"
+
+def verify_login(email, password):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name, password, plan_active, onboarded, is_admin FROM users WHERE email = ?", (email,))
+    user = cursor.fetchone()
+    conn.close()
+    
+    if user:
+        stored_hash = user[2]
+        # Bcrypt check
+        try:
+            if bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8')):
+                return True, {"id": user[0], "name": user[1], "plan_active": user[3], "onboarded": user[4], "is_admin": user[5]}
+        except ValueError:
+            # Fallback for old sha256 hashes
+            old_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
+            if old_hash == stored_hash:
+                return True, {"id": user[0], "name": user[1], "plan_active": user[3], "onboarded": user[4], "is_admin": user[5]}
+    return False, None
+
+def marcar_como_onboarded(user_id):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET onboarded = 1 WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+# METODOS DE GESTAO ADMIN
+def get_dashboard_metrics():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM users")
+    total_users = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM users WHERE onboarded = 1")
+    onboarded_users = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT id, name, email, plan_active, onboarded, is_admin FROM users ORDER BY id DESC")
+    all_users = cursor.fetchall()
+    conn.close()
+    return total_users, onboarded_users, all_users
+
+def add_improvement(title):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO improvements (title, status) VALUES (?, 'Pendente')", (title,))
+    conn.commit()
+    conn.close()
+
+def get_improvements():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, title, status FROM improvements ORDER BY id DESC")
+    items = cursor.fetchall()
+    conn.close()
+    return items
+
+def delete_improvement(imp_id):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM improvements WHERE id = ?", (imp_id,))
+    conn.commit()
+    conn.close()
+
+def toggle_improvement_status(imp_id, current_status):
+    new_status = 'Concluído' if current_status == 'Pendente' else 'Pendente'
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("UPDATE improvements SET status = ? WHERE id = ?", (new_status, imp_id))
+    conn.commit()
+    conn.close()
+
+# METODOS DE MEMÓRIA (HISTÓRICO DO CHAT)
+def create_session(user_id, title):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO chat_sessions (user_id, title) VALUES (?, ?)", (user_id, title))
+    sid = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return sid
+
+def get_user_sessions(user_id):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, title FROM chat_sessions WHERE user_id = ? ORDER BY id DESC", (user_id,))
+    s = cursor.fetchall()
+    conn.close()
+    return s
+
+def get_onboarding_profile(user_id):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    # Busca qualquer texto longo (onde o usuário explicou finanças) ou uploads de extrato
+    cursor.execute("""
+        SELECT content FROM chat_messages 
+        WHERE user_id = ? AND role = 'user' 
+        AND (content LIKE '%panorama inicial%' OR content LIKE '%extrato financeiro%' OR length(content) > 100)
+        ORDER BY id ASC LIMIT 3
+    """, (user_id,))
+    recs = cursor.fetchall()
+    conn.close()
+    
+    if recs:
+        textos = [r[0] for r in recs]
+        return "MEMÓRIA GLOBAL DO USUÁRIO (Contexto de Gastos e Faturas Anteriores):\n\n" + "\n\n---\n\n".join(textos)
+    return ""
+
+def add_message(session_id, user_id, role, content):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO chat_messages (session_id, user_id, role, content) VALUES (?, ?, ?, ?)", (session_id, user_id, role, content))
+    conn.commit()
+    conn.close()
+
+def get_session_messages(session_id):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT role, content FROM chat_messages WHERE session_id = ? ORDER BY id ASC", (session_id,))
+    registros = cursor.fetchall()
+    conn.close()
+    return [{"role": r[0], "content": r[1]} for r in registros]
+
+# Force reload

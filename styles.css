@@ -1,0 +1,102 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap');
+
+/* Força a tipografia global */
+html, body, [class*="st-"] {
+    font-family: 'Outfit', sans-serif !important;
+}
+
+/* Fundo da aplicação - Gradiente Premium */
+.stApp {
+    background: linear-gradient(135deg, #0B0E14 0%, #171E2D 100%) !important;
+    color: #E2E8F0 !important;
+}
+
+/* Sidebar com efeito Blur */
+[data-testid="stSidebar"] {
+    background-color: rgba(11, 14, 20, 0.4) !important;
+    backdrop-filter: blur(15px) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Esconder elementos padrão feios do Streamlit */
+[data-testid="stHeader"] {
+    background: transparent !important;
+}
+[data-testid="stToolbar"], #MainMenu, footer {
+    display: none !important;
+}
+
+/* Balões de Chat - Efeito de Vidro (Glassmorphism) */
+[data-testid="stChatMessage"] {
+    background: rgba(255, 255, 255, 0.02) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.04) !important;
+    border-radius: 12px !important;
+    padding: 1.5rem !important;
+    margin-bottom: 1rem !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Input do Chat e Componentes Form */
+[data-testid="stChatInput"] {
+    background-color: transparent !important;
+}
+
+.stChatInputContainer {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 16px !important;
+    padding: 0.2rem !important;
+}
+
+/* Ao clicar para digitar, aplicar glow azul maravilhoso */
+.stChatInputContainer:focus-within {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.4) !important;
+}
+
+/* Estilização dos Textos de Títulos */
+h1, h2, h3 {
+    background: -webkit-linear-gradient(45deg, #60a5fa, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 600 !important;
+}
+
+/* Box do Uploader de Arquivos modernizado */
+[data-testid="stFileUploader"] > section {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+    border: 1px dashed rgba(255, 255, 255, 0.2) !important;
+    border-radius: 10px !important;
+}
+
+/* Customização Premium de Inputs (Checkout/Login) */
+[data-testid="stTextInput"] input {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: white !important;
+    border-radius: 8px !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 1rem !important;
+    transition: all 0.3s ease !important;
+}
+
+[data-testid="stTextInput"] input:focus {
+    border-color: #a78bfa !important;
+    box-shadow: 0 0 10px rgba(167, 139, 250, 0.3) !important;
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Botões Estilizados */
+[data-testid="baseButton-primary"] {
+    background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%) !important;
+    border: none !important;
+    color: white !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    transition: transform 0.2s, box-shadow 0.2s !important;
+}
+[data-testid="baseButton-primary"]:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4) !important;
+}
