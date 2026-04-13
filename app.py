@@ -21,7 +21,7 @@ st.title("💰 AG Finance - Acesso Premium")
 st.markdown("<p style='text-align: center; font-style: italic; color: #6B7280; font-size: 0.9em; margin-bottom: 20px;'>Somos um assistente virtual que ajuda a resolver a sua vida financeira!</p>", unsafe_allow_html=True)
 st.markdown("Crie sua conta ou faça login para acessar a inteligência financeira mais avançada do mercado.")
 
-tab_login, tab_cadastro, tab_devel = st.tabs(["🔒 Entrar", "💳 Cadastre-se", "🛠️ Teste Rápido (Dev)"])
+tab_login, tab_cadastro = st.tabs(["🔒 Entrar", "💳 Cadastre-se"])
 
 with tab_login:
     email_login = st.text_input("E-mail corporativo ou pessoal")
@@ -68,34 +68,6 @@ with tab_cadastro:
             else:
                 st.error(msg)
                 
-with tab_devel:
-    st.subheader("Atalho de Desenvolvimento")
-    st.info("Pule as etapas de cadastro para verificar imediatamente como o aplicativo reage aos dois tipos de conta.")
-    col_dev1, col_dev2 = st.columns(2)
-    
-    if col_dev1.button("👨‍💼 Entrar como Comum", type="secondary", use_container_width=True):
-        create_user("Tester Comum", "comum@ag.bot", "123456", "11988887777", "Rua do Teste, 123")
-        _, temp_user = verify_login("comum@ag.bot", "123456")
-        st.session_state.logado = True
-        st.session_state.user_info = temp_user
-        st.switch_page("pages/2_Chat_Agente.py")
-        
-    if col_dev2.button("👑 Entrar como Admin", type="primary", use_container_width=True):
-        create_user("Mestre Admin", "admin@ag.bot", "123456", "11911112222", "Av. dos Admins, 456")
-        import sqlite3
-        conn = sqlite3.connect("users.db")
-        try:
-            conn.execute("UPDATE users SET is_admin = 1 WHERE email = 'admin@ag.bot'")
-            conn.commit()
-        except:
-            pass
-        conn.close()
-        
-        _, temp_user = verify_login("admin@ag.bot", "123456")
-        if temp_user:
-            temp_user['is_admin'] = True
-        st.session_state.logado = True
-        st.session_state.user_info = temp_user
-        st.switch_page("pages/2_Chat_Agente.py")
+
 
 st.stop()
