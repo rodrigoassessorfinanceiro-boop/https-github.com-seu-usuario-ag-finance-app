@@ -159,6 +159,15 @@ def marcar_como_onboarded(user_id):
     conn.commit()
     conn.close()
 
+def delete_user(user_id):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM chat_messages WHERE user_id = ?", (user_id,))
+    cursor.execute("DELETE FROM chat_sessions WHERE user_id = ?", (user_id,))
+    cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
 # METODOS DE GESTAO ADMIN
 def get_dashboard_metrics():
     conn = sqlite3.connect(DB_FILE)

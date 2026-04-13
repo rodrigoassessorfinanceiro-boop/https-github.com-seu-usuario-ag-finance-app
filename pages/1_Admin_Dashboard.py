@@ -36,6 +36,38 @@ st.subheader("👥 Usuários da Plataforma")
 if all_us:
     df_users = pd.DataFrame(all_us, columns=["ID", "Nome", "E-mail", "Assinante", "Onboarded", "Admin?", "Telefone", "Endereço", "Nome de Usuário"])
     st.dataframe(df_users, use_container_width=True, hide_index=True)
+    
+    st.markdown("---")
+    st.subheader("🕵️‍♂️ Gestão e Auditoria de Contas")
+    user_dict = {f"ID {u[0]} - {u[1]} ({u[8]})": u[0] for u in all_us}
+    selected_user_str = st.selectbox("Selecione um usuário para auditar ou gerenciar:", [""] + list(user_dict.keys()))
+    
+    if selected_user_str:
+        user_id = user_dict[selected_user_str]
+        st.write(f"**Ações para o usuário ID {user_id}:**")
+        
+        if st.button("🚨 EXCLUIR CONTA E DADOS", type="primary"):
+            from db import delete_user
+            delete_user(user_id)
+            st.success("Usuário e todo seu histórico foram removidos com sucesso.")
+            if user_id == st.session_state.user_info["id"]:
+                st.session_state.logado = False
+            st.rerun()
+                
+        st.markdown("#### Histórico de Interações (Auditoria)")
+        from db import get_user_sessions, get_session_messages
+        sessoes = get_user_sessions(user_id)
+        if not sessoes:
+            st.info("Este usuário ainda não interagiu com a IA.")
+        else:
+            for sid, stitle in sessoes:
+                with st.expander(f"Sessão {sid}: {stitle}"):
+                    msgs = get_session_messages(sid)
+                    for m in msgs:
+                        if m["role"] == "user":
+                            st.markdown(f"**🧑 Usuário:** {m['content']}")
+                        else:
+                            st.markdown(f"**🤖 IA:** {m['content']}")
 else:
     st.info("Nenhum usuário encontrado.")
     
