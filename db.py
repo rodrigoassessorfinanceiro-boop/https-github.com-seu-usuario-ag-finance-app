@@ -93,9 +93,15 @@ def create_user(name, email, password, phone="", address="", username=""):
         cursor = conn.cursor()
         
         if username:
-            cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
-            if cursor.fetchone():
-                return False, "Este nome de usuário já está em uso."
+            base_username = username
+            counter = 1
+            while True:
+                cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+                if cursor.fetchone():
+                    username = f"{base_username}{counter}"
+                    counter += 1
+                else:
+                    break
         
         # Atribuir como admin automaticamente se for o email de env
         admin_auth_mail = os.environ.get("ADMIN_EMAIL", "rodrigo@agfinance.com")

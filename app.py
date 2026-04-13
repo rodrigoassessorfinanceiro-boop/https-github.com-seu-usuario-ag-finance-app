@@ -38,7 +38,6 @@ with tab_login:
 with tab_cadastro:
     st.subheader("1. Dados para a Conta")
     nome_cad = st.text_input("Nome Completo")
-    username_cad = st.text_input("Nome de Usuário (Ex: nome.sobrenome)")
     email_cad = st.text_input("Crie um E-mail de acesso")
     telefone_cad = st.text_input("Número de Telefone (WhatsApp)")
     endereco_cad = st.text_input("Endereço Completo")
@@ -53,17 +52,26 @@ with tab_cadastro:
     cvc = col2.text_input("CVC", type="password", placeholder="***")
     
     if st.button("Concluir Assinatura AG Finance", type="primary", use_container_width=True):
-        username_formatado = username_cad.strip().lower() if username_cad else ""
-        if not nome_cad or not username_formatado or not email_cad or not telefone_cad or not endereco_cad or not senha_cad or not num_cartao or not validade or not cvc:
+        if not nome_cad or not email_cad or not telefone_cad or not endereco_cad or not senha_cad or not num_cartao or not validade or not cvc:
             st.warning("⚠️ Preencha todos os campos do formulário.")
-        elif " " in username_formatado:
-            st.warning("⚠️ O nome de usuário não pode conter espaços. Use ponto (ex: joao.silva)")
         else:
+            import unicodedata
+            import re
+            nfkd_form = unicodedata.normalize('NFKD', nome_cad)
+            clean_name = u"".join([c for c in nfkd_form if not unicodedata.combining(c)]).lower()
+            parts = re.findall(r'[a-z0-9]+', clean_name)
+            if len(parts) >= 2:
+                username_formatado = f"{parts[0]}.{parts[-1]}"
+            elif len(parts) == 1:
+                username_formatado = parts[0]
+            else:
+                username_formatado = "usuario"
+                
             with st.spinner("💳 Processando pagamento na operadora..."):
                 time.sleep(2)
                 sucesso, msg = create_user(nome_cad, email_cad, senha_cad, telefone_cad, endereco_cad, username_formatado)
             if sucesso:
-                st.success("🎉 Pagamento Aprovado! Bem-vindo(a) à AG Finance.")
+                st.success(f"🎉 Pagamento Aprovado! Seu usuário de Acesso é: {username_formatado}")
                 time.sleep(1.5)
                 _, user = verify_login(email_cad, senha_cad)
                 st.session_state.logado = True
