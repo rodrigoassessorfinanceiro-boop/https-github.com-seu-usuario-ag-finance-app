@@ -122,21 +122,34 @@ def create_user(name, email, password, phone="", address="", username=""):
 def verify_login(identifier, password):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, password, plan_active, onboarded, is_admin FROM users WHERE email = ? OR username = ?", (identifier, identifier))
+    cursor.execute("SELECT id, name, password, plan_active, onboarded, is_admin, email FROM users WHERE email = ? OR username = ?", (identifier, identifier))
     user = cursor.fetchone()
-    conn.close()
     
     if user:
         stored_hash = user[2]
-        # Bcrypt check
+        
+        # Check privileges
+        admin_status = user[5]
+        admin_mail = os.environ.get("ADMIN_EMAIL", "rodrigo@agfinance.com")
+        if user[6].lower().strip() == admin_mail.lower().strip() and not admin_status:
+            cursor.execute("UPDATE users SET is_admin = 1 WHERE id = ?", (user[0],))
+            conn.commit()
+            admin_status = 1
+            
+        is_valid = False
         try:
             if bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8')):
-                return True, {"id": user[0], "name": user[1], "plan_active": user[3], "onboarded": user[4], "is_admin": user[5]}
+                is_valid = True
         except ValueError:
-            # Fallback for old sha256 hashes
             old_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
             if old_hash == stored_hash:
-                return True, {"id": user[0], "name": user[1], "plan_active": user[3], "onboarded": user[4], "is_admin": user[5]}
+                is_valid = True
+                
+        if is_valid:
+            conn.close()
+            return True, {"id": user[0], "name": user[1], "plan_active": user[3], "onboarded": user[4], "is_admin": admin_status}
+            
+    conn.close()
     return False, None
 
 def marcar_como_onboarded(user_id):
