@@ -39,6 +39,8 @@ with tab_cadastro:
     st.subheader("1. Dados para a Conta")
     nome_cad = st.text_input("Nome Completo")
     email_cad = st.text_input("Crie um E-mail de acesso")
+    telefone_cad = st.text_input("Número de Telefone (WhatsApp)")
+    endereco_cad = st.text_input("Endereço Completo")
     senha_cad = st.text_input("Crie uma Senha Forte", type="password", key="cad_pass")
     
     st.markdown("---")
@@ -50,12 +52,12 @@ with tab_cadastro:
     cvc = col2.text_input("CVC", type="password", placeholder="***")
     
     if st.button("Concluir Assinatura AG Finance", type="primary", use_container_width=True):
-        if not nome_cad or not email_cad or not senha_cad or not num_cartao or not validade or not cvc:
+        if not nome_cad or not email_cad or not telefone_cad or not endereco_cad or not senha_cad or not num_cartao or not validade or not cvc:
             st.warning("⚠️ Preencha todos os campos do formulário.")
         else:
             with st.spinner("💳 Processando pagamento na operadora..."):
                 time.sleep(2)
-                sucesso, msg = create_user(nome_cad, email_cad, senha_cad)
+                sucesso, msg = create_user(nome_cad, email_cad, senha_cad, telefone_cad, endereco_cad)
             if sucesso:
                 st.success("🎉 Pagamento Aprovado! Bem-vindo(a) à AG Finance.")
                 time.sleep(1.5)
@@ -72,14 +74,14 @@ with tab_devel:
     col_dev1, col_dev2 = st.columns(2)
     
     if col_dev1.button("👨‍💼 Entrar como Comum", type="secondary", use_container_width=True):
-        create_user("Tester Comum", "comum@ag.bot", "123456")
+        create_user("Tester Comum", "comum@ag.bot", "123456", "11988887777", "Rua do Teste, 123")
         _, temp_user = verify_login("comum@ag.bot", "123456")
         st.session_state.logado = True
         st.session_state.user_info = temp_user
         st.switch_page("pages/2_Chat_Agente.py")
         
     if col_dev2.button("👑 Entrar como Admin", type="primary", use_container_width=True):
-        create_user("Mestre Admin", "admin@ag.bot", "123456")
+        create_user("Mestre Admin", "admin@ag.bot", "123456", "11911112222", "Av. dos Admins, 456")
         import sqlite3
         conn = sqlite3.connect("users.db")
         try:

@@ -29,6 +29,12 @@ def init_db():
     except sqlite3.OperationalError:
         pass
         
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN phone TEXT")
+        cursor.execute("ALTER TABLE users ADD COLUMN address TEXT")
+    except sqlite3.OperationalError:
+        pass
+        
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS improvements (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,7 +82,7 @@ def _hash_password(password):
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
-def create_user(name, email, password):
+def create_user(name, email, password, phone="", address=""):
     try:
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
@@ -86,8 +92,8 @@ def create_user(name, email, password):
         is_admin = True if email.lower().strip() == admin_auth_mail.lower().strip() else False
 
         cursor.execute(
-            "INSERT INTO users (name, email, password, plan_active, onboarded, is_admin) VALUES (?, ?, ?, ?, ?, ?)",
-            (name, email, _hash_password(password), True, False, is_admin)
+            "INSERT INTO users (name, email, password, plan_active, onboarded, is_admin, phone, address) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (name, email, _hash_password(password), True, False, is_admin, phone, address)
         )
         conn.commit()
         conn.close()
@@ -134,7 +140,7 @@ def get_dashboard_metrics():
     cursor.execute("SELECT COUNT(*) FROM users WHERE onboarded = 1")
     onboarded_users = cursor.fetchone()[0]
     
-    cursor.execute("SELECT id, name, email, plan_active, onboarded, is_admin FROM users ORDER BY id DESC")
+    cursor.execute("SELECT id, name, email, plan_active, onboarded, is_admin, phone, address FROM users ORDER BY id DESC")
     all_users = cursor.fetchall()
     conn.close()
     return total_users, onboarded_users, all_users
