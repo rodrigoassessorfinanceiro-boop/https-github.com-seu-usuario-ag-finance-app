@@ -34,7 +34,7 @@ c3.metric("Onboarding Concluído", onb_us)
 st.markdown("---")
 st.subheader("👥 Usuários da Plataforma")
 if all_us:
-    df_users = pd.DataFrame(all_us, columns=["ID", "Nome", "E-mail", "Assinante", "Onboarded", "Admin?", "Telefone", "Endereço"])
+    df_users = pd.DataFrame(all_us, columns=["ID", "Nome", "E-mail", "Assinante", "Onboarded", "Admin?", "Telefone", "Endereço", "Nome de Usuário"])
     st.dataframe(df_users, use_container_width=True, hide_index=True)
 else:
     st.info("Nenhum usuário encontrado.")
