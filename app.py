@@ -2,6 +2,7 @@ import streamlit as st
 import time
 from dotenv import load_dotenv
 from db import init_db, create_user, verify_login
+from streamlit_option_menu import option_menu
 
 load_dotenv(override=True)
 init_db()
@@ -17,14 +18,22 @@ if 'user_info' not in st.session_state:
 if st.session_state.logado:
     st.switch_page("pages/2_Chat_Agente.py")
 
-col_title, col_menu = st.columns([0.7, 0.3])
-with col_title:
-    st.markdown("### 🧭 Navegação AG")
-with col_menu:
-    opcao_menu = st.selectbox("Menu Principal", ["🏠 Login / Cadastro", "📖 Quem Somos", "✉️ Contato"], label_visibility="collapsed")
-    st.markdown("<br>", unsafe_allow_html=True)
+opcao_menu = option_menu(
+    menu_title=None,
+    options=["Quem Somos", "Contato", "Login"],
+    icons=["book", "envelope", "box-arrow-in-right"],
+    menu_icon="cast",
+    default_index=2,
+    orientation="horizontal",
+    styles={
+        "container": {"padding": "0!important", "background-color": "transparent", "box-shadow": "none"},
+        "icon": {"color": "#FFA500", "font-size": "18px"},
+        "nav-link": {"font-size": "16px", "text-align": "center", "margin": "0px", "--hover-color": "#222"},
+        "nav-link-selected": {"background-color": "#1E90FF"},
+    }
+)
 
-if opcao_menu == "🏠 Login / Cadastro":
+if opcao_menu == "Login":
     st.title("💰 AG Finance - Acesso Premium")
     st.markdown("<p style='text-align: center; font-style: italic; color: #6B7280; font-size: 0.9em; margin-bottom: 20px;'>Somos um assistente virtual que ajuda a resolver a sua vida financeira!</p>", unsafe_allow_html=True)
     st.markdown("Crie sua conta ou faça login para acessar a inteligência financeira mais avançada do mercado.")
@@ -88,7 +97,7 @@ if opcao_menu == "🏠 Login / Cadastro":
                 else:
                     st.error(msg)
                     
-elif opcao_menu == "📖 Quem Somos":
+elif opcao_menu == "Quem Somos":
     st.title("📖 Quem Somos")
     st.markdown("""
     ### A Maior Inteligência Artificial Financeira do Brasil
@@ -108,7 +117,7 @@ elif opcao_menu == "📖 Quem Somos":
         # Streamlit rerun isn't strictly necessary since button re-runs the script but it doesn't change sidebar state easily
         st.info("Para criar sua conta, selecione 'Login / Cadastro' no menu ao lado e aproveite.")
 
-elif opcao_menu == "✉️ Contato":
+elif opcao_menu == "Contato":
     st.title("✉️ Fale Conosco")
     st.markdown("Precisando de ajuda, suporte técnico ou tem uma proposta de parceria? Deixe sua mensagem abaixo.")
     
