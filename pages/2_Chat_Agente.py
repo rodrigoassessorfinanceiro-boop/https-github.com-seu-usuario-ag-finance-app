@@ -101,6 +101,13 @@ st.title("💰 AG Finance")
 st.markdown("<p style='text-align: center; font-style: italic; color: #6B7280; font-size: 0.9em; margin-bottom: 20px;'>Somos um assistente virtual que ajuda a resolver a sua vida financeira!</p>", unsafe_allow_html=True)
 st.markdown(f"Bem-vindo novamente, **{st.session_state.user_info['name']}**! Como posso ajudar suas finanças hoje?")
 
+if st.session_state.get("aviso_inatividade"):
+    dias = st.session_state.aviso_inatividade
+    st.toast(f"👋 Que bom ter você de volta! Fazia {dias} dias que não nos víamos.", icon="🎉")
+    st.info(f"**Notificamos sua ausência!** Percebemos que você ficou {dias} dias sem acessar a plataforma. O seu Inteligência Artificial sentiu sua falta, vamos colocar as finanças em dia!")
+    st.balloons()
+    st.session_state.aviso_inatividade = False
+
 with st.sidebar:
     st.markdown("---")
     api_key = st.text_input("Google Gemini API Key (Opcional):", type="password")

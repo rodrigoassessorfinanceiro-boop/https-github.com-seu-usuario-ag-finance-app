@@ -40,6 +40,11 @@ def init_db():
     except sqlite3.OperationalError:
         pass
         
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP")
+    except sqlite3.OperationalError:
+        pass
+        
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS improvements (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -131,7 +136,7 @@ def create_user(name, email, password, phone="", address="", username=""):
 def verify_login(identifier, password):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, password, plan_active, onboarded, is_admin, email FROM users WHERE email = ? OR username = ?", (identifier, identifier))
+    cursor.execute("SELECT id, name, password, plan_active, onboarded, is_admin, email, last_login_at FROM users WHERE email = ? OR username = ?", (identifier, identifier))
     user = cursor.fetchone()
     
     if user:
@@ -155,8 +160,11 @@ def verify_login(identifier, password):
                 is_valid = True
                 
         if is_valid:
+            last_dt = user[7] if len(user) > 7 else None
+            cursor.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (user[0],))
+            conn.commit()
             conn.close()
-            return True, {"id": user[0], "name": user[1], "plan_active": user[3], "onboarded": user[4], "is_admin": admin_status}
+            return True, {"id": user[0], "name": user[1], "plan_active": user[3], "onboarded": user[4], "is_admin": admin_status, "last_login": last_dt}
             
     conn.close()
     return False, None

@@ -47,6 +47,18 @@ if opcao_menu == "Login":
             sucesso, user = verify_login(email_login, senha_login)
             if sucesso:
                 st.session_state.logado = True
+                st.session_state.aviso_inatividade = False
+                
+                if user.get("last_login"):
+                    from datetime import datetime
+                    try:
+                        last_login_dt = datetime.strptime(user["last_login"], "%Y-%m-%d %H:%M:%S")
+                        dias_ausente = (datetime.utcnow() - last_login_dt).days
+                        if dias_ausente >= 3:
+                            st.session_state.aviso_inatividade = dias_ausente
+                    except Exception:
+                        pass
+                        
                 st.session_state.user_info = user
                 st.switch_page("pages/2_Chat_Agente.py")
             else:
