@@ -4,7 +4,7 @@ import pandas as pd
 import PyPDF2
 import time
 from agent import criar_agente, gerar_titulo_curto
-from db import marcar_como_onboarded, add_message, get_session_messages, create_session, get_user_sessions, get_onboarding_profile, log_activity
+from db import marcar_como_onboarded, update_onboarding_data, add_message, get_session_messages, create_session, get_user_sessions, get_onboarding_profile, log_activity
 
 if "logado" not in st.session_state or not st.session_state.logado:
     st.switch_page("app.py")
@@ -40,16 +40,23 @@ if not st.session_state.user_info.get('onboarded', False):
     st.markdown("Para personalizarmos sua experiência, conte-me um pouco sobre seu padrão de gastos ou suba sua primeira fatura.")
     
     with st.container():
-        gastos_texto = st.text_area("Descreva seus gastos ou orçamento atual:", height=100, placeholder="Ex: Ganho 5000, pago 1500 de aluguel e 300 de luz...")
-        st.markdown("**Ou se preferir, suba uma fatura/extrato abaixo:**")
-        uploaded_onboard = st.file_uploader("Fatura Inicial (CSV, Excel ou PDF)", type=["csv", "xls", "xlsx", "pdf"], key="onb_file")
+        st.markdown("Preencha 3 dados rápidos para a inteligência configurar o seu painel:")
+        val_renda = st.number_input("1. Qual é a sua Renda Mensal (Líquida)? R$", min_value=0.0, step=100.0, format="%.2f")
+        val_gastos = st.number_input("2. Qual o valor base dos seus Gastos Fixos mensais? R$", min_value=0.0, step=100.0, format="%.2f")
+        val_obj = st.selectbox("3. Qual o seu principal Objetivo Financeiro?", ["Quitar Dívidas", "Criar Reserva de Emergência", "Investir e Multiplicar Patrimônio", "Comprar Imóvel / Veículo", "Outro"])
+        
+        st.markdown("**Opcional:** Suba sua fatura/extrato atual:")
+        uploaded_onboard = st.file_uploader("Fatura (CSV, Excel ou PDF)", type=["csv", "xls", "xlsx", "pdf"], key="onb_file")
         
         if st.button("Enviar e Começar 🚀", type="primary", use_container_width=True):
             if not current_key:
                 st.error("⚠️ Defina a variável GOOGLE_API_KEY no arquivo `.env` para o agente funcionar.")
             else:
-                texto_final = "Aqui está meu panorama inicial financeiro:\n" + gastos_texto + "\n"
-                
+                if val_renda <= 0:
+                    st.warning("⚠️ Insira uma renda maior que zero para continuarmos.")
+                    st.stop()
+                    
+                texto_final = f"Aqui está meu panorama inicial financeiro estruturado:\n- Renda Mensal Líquida: R$ {val_renda:.2f}\n- Gastos Fixos Atuais: R$ {val_gastos:.2f}\n- Objetivo Principal: {val_obj}\n\n"
                 if uploaded_onboard:
                     extensao = uploaded_onboard.name.split('.')[-1].lower()
                     conteudo_extraido = ""
@@ -88,8 +95,11 @@ if not st.session_state.user_info.get('onboarded', False):
                         add_message(sid, st.session_state.user_info['id'], "user", texto_final)
                         add_message(sid, st.session_state.user_info['id'], "assistant", texto_res)
                         
-                        marcar_como_onboarded(st.session_state.user_info['id'])
+                        update_onboarding_data(st.session_state.user_info['id'], val_renda, val_gastos, val_obj)
                         st.session_state.user_info['onboarded'] = True
+                        st.session_state.user_info['renda_mensal'] = val_renda
+                        st.session_state.user_info['gastos_fixos'] = val_gastos
+                        st.session_state.user_info['objetivo_fin'] = val_obj
                         st.rerun()
                     except Exception as e:
                         st.error(f"Ocorreu um erro com a IA: {e}")
@@ -107,6 +117,22 @@ if st.session_state.get("aviso_inatividade"):
     st.info(f"**Notificamos sua ausência!** Percebemos que você ficou {dias} dias sem acessar a plataforma. O seu Inteligência Artificial sentiu sua falta, vamos colocar as finanças em dia!")
     st.balloons()
     st.session_state.aviso_inatividade = False
+
+renda = st.session_state.user_info.get('renda_mensal', 0.0)
+gastos = st.session_state.user_info.get('gastos_fixos', 0.0)
+obj = st.session_state.user_info.get('objetivo_fin', 'Nenhum')
+
+if renda > 0:
+    st.markdown("### 📊 Seu Painel Financeiro")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Renda Mensal", f"R$ {renda:,.2f}")
+    c2.metric("Gastos Fixos", f"R$ {gastos:,.2f}")
+    pct = (gastos / renda) * 100
+    if pct > 60:
+        c3.metric("Renda Comprometida", f"🔴 {pct:.1f}% (Alto!)")
+    else:
+        c3.metric("Renda Comprometida", f"🟢 {pct:.1f}%")
+    st.markdown("---")
 
 with st.sidebar:
     st.markdown("---")
@@ -140,6 +166,42 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📊 Análise de Extratos")
     uploaded_file = st.file_uploader("Suba sua fatura/extrato", type=["csv", "xls", "xlsx", "pdf"])
+    
+    st.markdown("---")
+    st.markdown("### 📄 Relatórios Avançados")
+    btn_pdf = st.button("📥 Receber Plano Financeiro (PDF)", use_container_width=True, type="primary")
+
+if btn_pdf:
+    if not current_key:
+        st.sidebar.error("Precisa de API Key para gerar o PDF!")
+    else:
+        with st.spinner("🧠 Gerando plano de ação financeiro personalizado..."):
+            try:
+                ag_temp = criar_agente(api_key=current_key, model_name="gemini-2.5-flash")
+                prompt_pdf = f"Gere um Plano Financeiro resumido em puro texto simples (sem markdown pesado e estritamente SEM EMOJIS). O usuário ganha {renda}, gasta fixo {gastos} e o objetivo é {obj}. Divida em 3 tópicos: 1. Diagnóstico, 2. Plano de Ação em Passos, 3. Dica Final."
+                resposta_pdf = ag_temp.invoke({"input": prompt_pdf, "history": []}).get("output", "")
+                
+                # Substituir qualquer emoji que ele ainda insista em gerar (cleanup basico)
+                texto_limpo = resposta_pdf.encode('latin-1', 'replace').decode('latin-1')
+                
+                from fpdf import FPDF
+                class PDF(FPDF):
+                    def header(self):
+                        self.set_font('Helvetica', 'B', 15)
+                        self.cell(0, 10, 'AG Finance - Plano Financeiro de Acao', border=False, align='C')
+                        self.ln(20)
+                
+                pdf = PDF()
+                pdf.add_page()
+                pdf.set_auto_page_break(auto=True, margin=15)
+                pdf.set_font("Helvetica", size=12)
+                pdf.multi_cell(0, 10, texto_limpo)
+                
+                pdf_bytes = pdf.output()
+                st.sidebar.success("PDF Gerado sob medida!")
+                st.sidebar.download_button(label="Baixar Plano.pdf", data=pdf_bytes, file_name="Seu_Plano_Financeiro_AG.pdf", mime="application/pdf", type="primary")
+            except Exception as e:
+                st.sidebar.error(f"Erro ao gerar PDF (instale a lib fpdf2 no servidor): {e}")
 
 if not current_key:
     st.warning("⚠️ Insira sua **API Key do Google Gemini** no menu lateral ou no arquivo `.env` para conversar.")
@@ -206,18 +268,33 @@ for msg in st.session_state.mensagens:
     with st.chat_message(msg["role"]):
         st.markdown(texto_chat)
 
-user_input = st.chat_input("Pergunte algo ou faça simulações de investimento!")
+st.markdown("💡 **Apostas Seguras (Clique para perguntar):**")
+c_b1, c_b2, c_b3, c_b4, c_b5 = st.columns(5)
+btn_clicado = None
+if c_b1.button("📉 Cortar Gastos", use_container_width=True, help="Como reduzir meus gastos atuais?"):
+    btn_clicado = "Listar 3 dicas práticas para reduzir meus gastos atuais com base no meu objetivo financeiro."
+if c_b2.button("🏆 Meu Objetivo", use_container_width=True, help="Como atingir meu objetivo principal?"):
+    btn_clicado = f"Como posso atingir meu objetivo '{obj}' de forma mais rápida?"
+if c_b3.button("🚨 Ver Faturas", use_container_width=True, help="Avalie minhas faturas inseridas e dê dicas."):
+    btn_clicado = "Analise profundamente minhas faturas e extratos armazenados na memória e aponte os maiores drenos de dinheiro."
+if c_b4.button("📈 Investir Sobra", use_container_width=True, help="Onde devo aplicar meu dinheiro?"):
+    btn_clicado = "Diga as 2 melhores formas de aplicar R$300 reais por mês com segurança."
+if c_b5.button("💼 Regra Ideal", use_container_width=True, help="Regra Orçamentária"):
+    btn_clicado = "O que é a regra 50-30-20 e como eu a aplicaria aos meus ganhos atuais?"
 
-if user_input:
+user_input = st.chat_input("Pergunte algo ou faça simulações de investimento!")
+entrada_final = user_input or btn_clicado
+
+if entrada_final:
     if st.session_state.get("current_session_id") is None:
-        tit = gerar_titulo_curto(user_input, api_key=current_key)
+        tit = gerar_titulo_curto(entrada_final, api_key=current_key)
         sid = create_session(st.session_state.user_info['id'], tit)
         st.session_state.current_session_id = sid
 
-    st.session_state.mensagens.append({"role": "user", "content": user_input})
-    add_message(st.session_state.current_session_id, st.session_state.user_info['id'], "user", user_input)
+    st.session_state.mensagens.append({"role": "user", "content": entrada_final})
+    add_message(st.session_state.current_session_id, st.session_state.user_info['id'], "user", entrada_final)
     with st.chat_message("user"):
-        st.markdown(user_input)
+        st.markdown(entrada_final)
 
     with st.chat_message("assistant"):
         with st.spinner("Analisando as informações financeiras..."):
@@ -227,11 +304,11 @@ if user_input:
                 # Global Biological Memory Injection
                 biomem = get_onboarding_profile(st.session_state.user_info['id'])
                 if biomem and not any("MEMÓRIA GLOBAL DO USUÁRIO" in m['content'] for m in historico_ai):
-                    historico_ai.insert(0, {"role": "user", "content": biomem})
-                    historico_ai.insert(1, {"role": "assistant", "content": "Memória Ativa: Entendido! Carreguei todo o seu histórico de faturas e gastos iniciais da nossa conversa mestra."})
+                    historico_ai.insert(0, {"role": "user", "content": biomem + f"\n[METADADOS ATUAIS] Ganho: {renda}, Gasto Fixo: {gastos}, Objetivo: {obj}"})
+                    historico_ai.insert(1, {"role": "assistant", "content": "Memória Ativa: Entendido! Carreguei todo o seu histórico de faturas e gastos iniciais."})
                     
                 resposta = st.session_state.agente.invoke({
-                    "input": user_input,
+                    "input": entrada_final,
                     "history": historico_ai
                 })
                 texto_resposta = resposta.get("output", "Desculpe, não consegui processar isso.")
