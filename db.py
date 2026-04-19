@@ -80,6 +80,15 @@ def init_db():
     except sqlite3.OperationalError:
         pass
         
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS usage_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            activity_type TEXT NOT NULL,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -263,5 +272,27 @@ def get_session_messages(session_id):
     registros = cursor.fetchall()
     conn.close()
     return [{"role": r[0], "content": r[1]} for r in registros]
+
+# METODOS DE MONITORAMENTO DA PLATAFORMA
+def log_activity(user_id, activity_type):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO usage_logs (user_id, activity_type) VALUES (?, ?)", (user_id, activity_type))
+    conn.commit()
+    conn.close()
+
+def get_top_activities():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT activity_type, COUNT(*) as count 
+        FROM usage_logs 
+        GROUP BY activity_type 
+        ORDER BY count DESC 
+        LIMIT 10
+    ''')
+    results = cursor.fetchall()
+    conn.close()
+    return results
 
 # Force reload

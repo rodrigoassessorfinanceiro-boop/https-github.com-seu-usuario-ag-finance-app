@@ -4,7 +4,7 @@ import pandas as pd
 import PyPDF2
 import time
 from agent import criar_agente, gerar_titulo_curto
-from db import marcar_como_onboarded, add_message, get_session_messages, create_session, get_user_sessions, get_onboarding_profile
+from db import marcar_como_onboarded, add_message, get_session_messages, create_session, get_user_sessions, get_onboarding_profile, log_activity
 
 if "logado" not in st.session_state or not st.session_state.logado:
     st.switch_page("app.py")
@@ -180,6 +180,7 @@ if uploaded_file is not None and getattr(st.session_state, "ultimo_arquivo", Non
             texto_resposta = resposta.get("output", "Desculpe, deu erro na leitura.")
             st.session_state.mensagens.append({"role": "assistant", "content": texto_resposta})
             add_message(st.session_state.current_session_id, st.session_state.user_info['id'], "assistant", texto_resposta)
+            log_activity(st.session_state.user_info['id'], "Leitura de Fatura PDF/Planilha")
             st.rerun()
         except Exception as e:
             st.error(f"Erro ao processar o arquivo: {e}")
@@ -230,5 +231,6 @@ if user_input:
                 st.markdown(texto_resposta)
                 st.session_state.mensagens.append({"role": "assistant", "content": texto_resposta})
                 add_message(st.session_state.current_session_id, st.session_state.user_info['id'], "assistant", texto_resposta)
+                log_activity(st.session_state.user_info['id'], "Chat LLM Agente")
             except Exception as e:
                 st.error(f"Ocorreu um erro durante a resposta: {e}")

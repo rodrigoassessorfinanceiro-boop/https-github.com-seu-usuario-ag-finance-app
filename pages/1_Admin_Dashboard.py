@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-from db import get_dashboard_metrics, add_improvement, get_improvements, delete_improvement, toggle_improvement_status
+import psutil
+from db import get_dashboard_metrics, add_improvement, get_improvements, delete_improvement, toggle_improvement_status, get_top_activities
 
 # Verificação de segurança
 if "logado" not in st.session_state or not st.session_state.logado:
@@ -30,6 +31,28 @@ c1, c2, c3 = st.columns(3)
 c1.metric("Total de Cadastros", tot_us)
 c2.metric("Assinantes Ativos", tot_us) # MVP: todos do banco local sao assinantes
 c3.metric("Onboarding Concluído", onb_us)
+
+st.markdown("---")
+st.subheader("🖥️ Monitoramento de Plataforma")
+col_cpu, col_ram = st.columns(2)
+
+cpu_percent = psutil.cpu_percent(interval=None) # pega instante
+ram_info = psutil.virtual_memory()
+
+# Alert logic 90%
+if cpu_percent >= 90.0 or ram_info.percent >= 90.0:
+    st.error(f"⚠️ ALERTA CRÍTICO: Capacidade da plataforma operando acima de 90%! (CPU {cpu_percent}% / RAM {ram_info.percent}%)")
+
+col_cpu.metric(label="Uso de Processamento (CPU)", value=f"{cpu_percent}%")
+col_ram.metric(label="Uso de Memória (RAM)", value=f"{ram_info.percent}%")
+
+st.markdown("#### 🔥 Atividades de Maior Consumo")
+top_acts = get_top_activities()
+if top_acts:
+    df_acts = pd.DataFrame(top_acts, columns=["Tipo de Atividade (Feature)", "Total de Ocorrências"])
+    st.dataframe(df_acts, use_container_width=True, hide_index=True)
+else:
+    st.info("Nenhum dado de uso registrado ainda pelas atividades do sistema.")
 
 st.markdown("---")
 st.subheader("👥 Usuários da Plataforma")
