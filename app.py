@@ -15,17 +15,17 @@ CSS = """
 <style>
 /* ── BASE ─────────────────────────────────── */
 html, body, [data-testid="stAppViewContainer"] {
-    background: #0B1F3A !important;
+    background: #021B38 !important;
 }
 [data-testid="stAppViewContainer"] > .main {
-    background: linear-gradient(160deg, #0B1F3A 0%, #0F2847 50%, #132F5C 100%) !important;
+    background: linear-gradient(135deg, #021B38 0%, #05366D 100%) !important;
 }
 [data-testid="stHeader"] {
     background: transparent !important;
 }
 section[data-testid="stSidebar"] {
-    background: #081629 !important;
-    border-right: 1px solid rgba(212,175,55,0.12) !important;
+    background: #01142A !important;
+    border-right: 1px solid rgba(223,161,79,0.12) !important;
 }
 
 /* ── TIPOGRAFIA ───────────────────────────── */
@@ -41,7 +41,7 @@ p, li, label, span {
 }
 
 /* ── CLASSES UTILITÁRIAS ──────────────────── */
-.gold { color: #D4AF37 !important; font-weight: 600; }
+.gold { color: #DFA14F !important; font-weight: 600; }
 .muted { color: #8FA4C8 !important; }
 
 .big-title {
@@ -51,7 +51,7 @@ p, li, label, span {
     line-height: 1.15;
     letter-spacing: -0.5px;
 }
-.big-title .accent { color: #D4AF37; }
+.big-title .accent { color: #DFA14F; }
 
 .subtitle {
     font-size: 16px;
@@ -65,9 +65,9 @@ p, li, label, span {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: rgba(212,175,55,0.10);
-    border: 1px solid rgba(212,175,55,0.30);
-    color: #D4AF37 !important;
+    background: rgba(223,161,79,0.10);
+    border: 1px solid rgba(223,161,79,0.30);
+    color: #DFA14F !important;
     font-size: 12px;
     font-weight: 600;
     padding: 5px 14px;
@@ -78,7 +78,7 @@ p, li, label, span {
 .badge-free::before {
     content: "";
     width: 6px; height: 6px;
-    background: #D4AF37;
+    background: #DFA14F;
     border-radius: 50%;
 }
 
@@ -92,11 +92,11 @@ p, li, label, span {
     transition: border-color 0.2s;
 }
 .card:hover {
-    border-color: rgba(212,175,55,0.18);
+    border-color: rgba(223,161,79,0.18);
 }
 .card-gold {
-    background: rgba(212,175,55,0.06);
-    border: 1px solid rgba(212,175,55,0.20);
+    background: rgba(223,161,79,0.06);
+    border: 1px solid rgba(223,161,79,0.20);
     border-radius: 14px;
     padding: 20px 22px;
     margin-bottom: 12px;
@@ -104,14 +104,14 @@ p, li, label, span {
 .card-week {
     background: rgba(255,255,255,0.03);
     border: 1px solid rgba(255,255,255,0.07);
-    border-left: 3px solid #D4AF37;
+    border-left: 3px solid #DFA14F;
     border-radius: 0 12px 12px 0;
     padding: 14px 18px;
     margin-bottom: 10px;
 }
 .card-week .week-tag {
     font-size: 11px;
-    color: #D4AF37 !important;
+    color: #DFA14F !important;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -140,7 +140,7 @@ p, li, label, span {
     font-size: 64px;
     font-weight: 800;
     line-height: 1;
-    color: #D4AF37 !important;
+    color: #DFA14F !important;
 }
 .score-number.low  { color: #F44336 !important; }
 .score-number.mid  { color: #FF9800 !important; }
@@ -152,9 +152,9 @@ p, li, label, span {
 }
 .score-objetivo {
     display: inline-block;
-    background: rgba(212,175,55,0.10);
-    border: 1px solid rgba(212,175,55,0.25);
-    color: #D4AF37 !important;
+    background: rgba(223,161,79,0.10);
+    border: 1px solid rgba(223,161,79,0.25);
+    color: #DFA14F !important;
     font-size: 12px;
     font-weight: 600;
     padding: 4px 12px;
@@ -179,8 +179,8 @@ p, li, label, span {
 
 /* ── ECO CARD ─────────────────────────────── */
 .eco-highlight {
-    background: rgba(212,175,55,0.08);
-    border: 1px solid rgba(212,175,55,0.22);
+    background: rgba(223,161,79,0.08);
+    border: 1px solid rgba(223,161,79,0.22);
     border-radius: 14px;
     padding: 18px 22px;
     text-align: center;
@@ -194,13 +194,13 @@ p, li, label, span {
 .eco-highlight .eco-value {
     font-size: 36px;
     font-weight: 800;
-    color: #D4AF37 !important;
+    color: #DFA14F !important;
 }
 
 /* ── BOTÕES ───────────────────────────────── */
 .stButton > button {
-    background: linear-gradient(135deg, #D4AF37 0%, #B8922A 100%) !important;
-    color: #0B1F3A !important;
+    background: linear-gradient(135deg, #DFA14F 0%, #C58C41 100%) !important;
+    color: #021B38 !important;
     font-weight: 700 !important;
     font-size: 14px !important;
     border: none !important;
@@ -218,11 +218,11 @@ p, li, label, span {
 }
 .btn-secondary > button {
     background: transparent !important;
-    color: #D4AF37 !important;
-    border: 1px solid rgba(212,175,55,0.35) !important;
+    color: #DFA14F !important;
+    border: 1px solid rgba(223,161,79,0.35) !important;
 }
 .btn-secondary > button:hover {
-    background: rgba(212,175,55,0.08) !important;
+    background: rgba(223,161,79,0.08) !important;
     opacity: 1 !important;
 }
 
@@ -230,18 +230,18 @@ p, li, label, span {
 [data-testid="stTextInput"] input,
 [data-testid="stSelectbox"] > div > div,
 [data-testid="stTextArea"] textarea {
-    background: rgba(255,255,255,0.05) !important;
+    background: #FFFFFF !important;
     border: 1px solid rgba(255,255,255,0.12) !important;
     border-radius: 10px !important;
-    color: #FFFFFF !important;
+    color: #000000 !important;
     font-size: 14px !important;
     padding: 10px 14px !important;
     transition: border-color 0.2s !important;
 }
 [data-testid="stTextInput"] input:focus,
 [data-testid="stTextArea"] textarea:focus {
-    border-color: rgba(212,175,55,0.5) !important;
-    box-shadow: 0 0 0 3px rgba(212,175,55,0.08) !important;
+    border-color: rgba(223,161,79,0.5) !important;
+    box-shadow: 0 0 0 3px rgba(223,161,79,0.08) !important;
 }
 [data-testid="stTextInput"] label,
 [data-testid="stTextArea"] label,
@@ -272,8 +272,8 @@ p, li, label, span {
     padding: 8px 18px !important;
 }
 [data-testid="stTabs"] [role="tab"][aria-selected="true"] {
-    color: #D4AF37 !important;
-    border-bottom-color: #D4AF37 !important;
+    color: #DFA14F !important;
+    border-bottom-color: #DFA14F !important;
 }
 [data-testid="stTabs"] [data-baseweb="tab-list"] {
     background: transparent !important;
@@ -287,7 +287,7 @@ p, li, label, span {
     height: 4px !important;
 }
 [data-testid="stProgress"] > div > div > div {
-    background: linear-gradient(90deg, #D4AF37, #B8922A) !important;
+    background: linear-gradient(90deg, #DFA14F, #C58C41) !important;
     border-radius: 4px !important;
 }
 
@@ -306,7 +306,7 @@ hr {
 
 /* ── SPINNER ──────────────────────────────── */
 [data-testid="stSpinner"] {
-    color: #D4AF37 !important;
+    color: #DFA14F !important;
 }
 </style>
 """
@@ -393,9 +393,15 @@ def landing():
         st.markdown('<div class="subtitle">Descubra em 2 minutos onde você está perdendo dinheiro</div>', unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
 
-        if st.button("Fazer diagnóstico gratuito"):
-            st.session_state.etapa = "onboarding"
-            st.rerun()
+        col_btn1, col_btn2 = st.columns([1, 1])
+        with col_btn1:
+            if st.button("Fazer diagnóstico gratuito", use_container_width=True):
+                st.session_state.etapa = "onboarding"
+                st.rerun()
+        with col_btn2:
+            if st.button("Já tenho conta", use_container_width=True, type="secondary"):
+                st.session_state.etapa = "paywall"
+                st.rerun()
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("✔ Rápido  \n✔ Sem planilha  \n✔ 100% confidencial")

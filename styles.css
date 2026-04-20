@@ -5,15 +5,15 @@ html, body, [class*="st-"] {
     font-family: 'Outfit', sans-serif !important;
 }
 
-/* Fundo da aplicação - Gradiente Premium */
+/* Fundo da aplicação - Gradiente Premium (Naval/Deep Blue) */
 .stApp {
-    background: linear-gradient(135deg, #0B0E14 0%, #171E2D 100%) !important;
-    color: #E2E8F0 !important;
+    background: linear-gradient(135deg, #021B38 0%, #05366D 100%) !important;
+    color: #F8F9FA !important;
 }
 
 /* Sidebar com efeito Blur */
 [data-testid="stSidebar"] {
-    background-color: rgba(11, 14, 20, 0.4) !important;
+    background-color: rgba(2, 27, 56, 0.5) !important;
     backdrop-filter: blur(15px) !important;
     border-right: 1px solid rgba(255, 255, 255, 0.05);
 }
@@ -49,15 +49,15 @@ html, body, [class*="st-"] {
     padding: 0.2rem !important;
 }
 
-/* Ao clicar para digitar, aplicar glow azul maravilhoso */
+/* Ao clicar para digitar, aplicar glow dourado maravilhoso */
 .stChatInputContainer:focus-within {
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 15px rgba(59, 130, 246, 0.4) !important;
+    border-color: #DFA14F !important;
+    box-shadow: 0 0 15px rgba(223, 161, 79, 0.4) !important;
 }
 
 /* Estilização dos Textos de Títulos */
 h1, h2, h3 {
-    background: -webkit-linear-gradient(45deg, #60a5fa, #a78bfa);
+    background: -webkit-linear-gradient(45deg, #F3C380, #DFA14F);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     font-weight: 600 !important;
@@ -72,9 +72,9 @@ h1, h2, h3 {
 
 /* Customização Premium de Inputs (Checkout/Login) */
 [data-testid="stTextInput"] input {
-    background-color: rgba(255, 255, 255, 0.05) !important;
+    background-color: #FFFFFF !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: white !important;
+    color: #000000 !important;
     border-radius: 8px !important;
     padding: 0.75rem 1rem !important;
     font-size: 1rem !important;
@@ -82,21 +82,21 @@ h1, h2, h3 {
 }
 
 [data-testid="stTextInput"] input:focus {
-    border-color: #a78bfa !important;
-    box-shadow: 0 0 10px rgba(167, 139, 250, 0.3) !important;
-    background-color: rgba(255, 255, 255, 0.08) !important;
+    border-color: #DFA14F !important;
+    box-shadow: 0 0 10px rgba(223, 161, 79, 0.3) !important;
+    background-color: #FAFAFA !important;
 }
 
 /* Botões Estilizados */
 [data-testid="baseButton-primary"] {
-    background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%) !important;
+    background: linear-gradient(90deg, #C58C41 0%, #E2AB5D 100%) !important;
     border: none !important;
-    color: white !important;
+    color: #FAFAFA !important;
     border-radius: 8px !important;
     font-weight: 600 !important;
     transition: transform 0.2s, box-shadow 0.2s !important;
 }
 [data-testid="baseButton-primary"]:hover {
     transform: translateY(-2px) !important;
-    box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4) !important;
+    box-shadow: 0 5px 15px rgba(226, 171, 93, 0.4) !important;
 }
