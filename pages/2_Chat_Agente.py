@@ -131,7 +131,11 @@ if not st.session_state.user_info.get('onboarded', False):
                 with st.spinner("🧠 Estudando seu padrão financeiro..."):
                     try:
                         ag_temp = criar_agente(api_key=current_key, model_name="gemini-2.5-flash")
-                        resposta = ag_temp.invoke({"input": texto_final, "history": []})
+                        resposta = ag_temp.invoke({
+                            "input": texto_final, 
+                            "history": [],
+                            "user_info": st.session_state.user_info
+                        })
                         
                         texto_res = resposta.get("output", "Tudo certo! Como começamos?")
                         st.session_state.mensagens = [
@@ -249,7 +253,11 @@ if btn_pdf:
             try:
                 ag_temp = criar_agente(api_key=current_key, model_name="gemini-2.5-flash")
                 prompt_pdf = f"Gere um Plano Financeiro resumido em puro texto simples (sem markdown pesado e estritamente SEM EMOJIS). O usuário ganha {renda}, gasta fixo {gastos} e o objetivo é {obj}. Divida em 3 tópicos: 1. Diagnóstico, 2. Plano de Ação em Passos, 3. Dica Final."
-                resposta_pdf = ag_temp.invoke({"input": prompt_pdf, "history": []}).get("output", "")
+                resposta_pdf = ag_temp.invoke({
+                    "input": prompt_pdf, 
+                    "history": [],
+                    "user_info": st.session_state.user_info
+                }).get("output", "")
                 
                 # Substituir qualquer emoji que ele ainda insista em gerar (cleanup basico)
                 texto_limpo = resposta_pdf.encode('latin-1', 'replace').decode('latin-1')
@@ -315,7 +323,11 @@ if uploaded_file is not None and getattr(st.session_state, "ultimo_arquivo", Non
             st.session_state.mensagens.append({"role": "user", "content": mensagem_invisivel})
             add_message(st.session_state.current_session_id, st.session_state.user_info['id'], "user", mensagem_invisivel)
             
-            resposta = st.session_state.agente.invoke({"input": mensagem_invisivel})
+            resposta = st.session_state.agente.invoke({
+                "input": mensagem_invisivel,
+                "history": [],
+                "user_info": st.session_state.user_info
+            })
             texto_resposta = resposta.get("output", "Desculpe, deu erro na leitura.")
             st.session_state.mensagens.append({"role": "assistant", "content": texto_resposta})
             add_message(st.session_state.current_session_id, st.session_state.user_info['id'], "assistant", texto_resposta)
@@ -426,21 +438,11 @@ if entrada_final:
         with st.spinner("Analisando as informações financeiras..."):
             try:
                 historico_ai = st.session_state.mensagens[:-1]
-                
-                # Global Biological Memory Injection
-                biomem = get_onboarding_profile(st.session_state.user_info['id'])
-                if biomem and not any("MEMÓRIA GLOBAL DO USUÁRIO" in m['content'] for m in historico_ai):
-                    extra_funil = ""
-                    if st.session_state.user_info.get("dados_funil"):
-                        df = st.session_state.user_info["dados_funil"]
-                        extra_funil = f"\n[DADOS DO DIAGNÓSTICO] Pessoas lar: {df.get('pessoas')}, Sobra Mês: {df.get('sobra')}, Dívidas: {df.get('divida')}, Foco: {df.get('gasto')}."
-                    
-                    historico_ai.insert(0, {"role": "user", "content": biomem + f"\n[METADADOS ATUAIS] Ganho: {renda}, Gasto: {gastos}, Objetivo: {obj}" + extra_funil})
-                    historico_ai.insert(1, {"role": "assistant", "content": "Memória Ativa: Entendido! Carreguei todo o seu histórico de faturas e gastos iniciais."})
                     
                 resposta = st.session_state.agente.invoke({
                     "input": entrada_final,
-                    "history": historico_ai
+                    "history": historico_ai,
+                    "user_info": st.session_state.user_info
                 })
                 texto_resposta = resposta.get("output", "Desculpe, não consegui processar isso.")
                 st.markdown(texto_resposta)

@@ -1,4 +1,5 @@
 import os
+import logging
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import ToolMessage
 from langchain.tools import tool
@@ -6,128 +7,251 @@ from dotenv import load_dotenv
 import requests
 
 load_dotenv(override=True)
+logger = logging.getLogger(__name__)
+
+# ─────────────────────────────────────────────
+# FERRAMENTAS
+# ─────────────────────────────────────────────
 
 @tool
 def calculadora_juros_compostos(aporte_mensal: float, taxa_juros_anual: float, anos: int) -> str:
     """
     Calcula o montante final de um investimento com aportes mensais e juros compostos.
-    O valor 'taxa_juros_anual' deve estar em porcentagem (ex: 10 para 10%).
+    Use quando o usuário perguntar sobre simulações de investimento, aposentadoria ou
+    crescimento de patrimônio ao longo do tempo.
+    O parâmetro taxa_juros_anual deve ser em % (ex: 10 para 10% a.a.).
     """
-    taxa_mensal = (1 + (taxa_juros_anual / 100)) ** (1/12) - 1
+    if aporte_mensal <= 0 or taxa_juros_anual <= 0 or anos <= 0:
+        return "Valores inválidos: aporte, taxa e anos devem ser positivos."
+    taxa_mensal = (1 + taxa_juros_anual / 100) ** (1 / 12) - 1
     meses = anos * 12
     montante = 0.0
-
     for _ in range(meses):
-        montante += aporte_mensal
-        montante *= (1 + taxa_mensal)
-        
-    return f"O montante estimado após {anos} anos investindo R$ {aporte_mensal:.2f} mensais a {taxa_juros_anual:.2f}% a.a. é de aproximadamente R$ {montante:.2f}."
+        montante = (montante + aporte_mensal) * (1 + taxa_mensal)
+    total_investido = aporte_mensal * meses
+    rendimento = montante - total_investido
+    return (
+        f"📊 **Simulação de {anos} anos**\n"
+        f"- Aporte mensal: R$ {aporte_mensal:,.2f}\n"
+        f"- Taxa: {taxa_juros_anual:.2f}% a.a. ({taxa_mensal*100:.3f}% a.m.)\n"
+        f"- Total investido: R$ {total_investido:,.2f}\n"
+        f"- Rendimento: R$ {rendimento:,.2f}\n"
+        f"- **Montante final: R$ {montante:,.2f}**"
+    )
 
 @tool
 def buscar_cotacao_moeda(moeda: str) -> str:
     """
-    Busca a cotação atual de uma moeda em relação ao Real (BRL) na internet (ao vivo).
-    O parâmetro 'moeda' deve ser uma destas: 'USD' (Dólar), 'EUR' (Euro), ou 'BTC' (Bitcoin).
+    Busca a cotação atual de qualquer moeda em relação ao Real (BRL).
+    Use o código ISO 4217 da moeda (ex: USD, EUR, GBP, JPY, ARS, BTC, ETH).
     """
     try:
-        m = moeda.upper()
-        if m not in ['USD', 'EUR', 'BTC']:
-            return "Moeda não suportada pela interface. Tente USD, EUR ou BTC."
-        
-        resp = requests.get(f"https://economia.awesomeapi.com.br/json/last/{m}-BRL")
+        m = moeda.upper().strip()
+        resp = requests.get(
+            f"https://economia.awesomeapi.com.br/json/last/{m}-BRL",
+            timeout=5
+        )
         if resp.status_code == 200:
             dados = resp.json()
             chave = f"{m}BRL"
             if chave in dados:
-                valor = float(dados[chave]['bid'])
-                return f"A cotação atual em tempo real do {m} frente ao BRL é de R$ {valor:.2f}."
-        return "Falha nas pontes de Câmbio."
+                d = dados[chave]
+                valor = float(d['bid'])
+                variacao = float(d.get('pctChange', 0))
+                sinal = "🔺" if variacao >= 0 else "🔻"
+                return (
+                    f"💱 **{m}/BRL** → R$ {valor:,.4f}\n"
+                    f"{sinal} Variação hoje: {variacao:+.2f}%"
+                )
+        return f"Moeda '{m}' não encontrada. Verifique o código ISO (ex: USD, EUR, GBP)."
+    except requests.Timeout:
+        return "Serviço de câmbio indisponível no momento. Tente novamente."
     except Exception as e:
-        return f"Erro de conexão cambial: {e}"
+        logger.error(f"Erro cotação {moeda}: {e}")
+        return f"Erro ao buscar cotação: {e}"
 
 @tool
 def buscar_taxa_selic() -> str:
     """
-    Busca os indicativos oficiais na API do BCB (Banco Central do Brasil) sobre a atual Taxa Selic Meta Anual consolidada.
+    Busca a Taxa Selic Meta atual no Banco Central do Brasil.
+    Use quando o usuário perguntar sobre a taxa básica de juros, rendimento de
+    renda fixa atrelada ao CDI/Selic, ou comparações com investimentos.
     """
     try:
-        resp = requests.get("https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json")
+        resp = requests.get(
+            "https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json",
+            timeout=5
+        )
         if resp.status_code == 200:
             dados = resp.json()
-            if len(dados) > 0 and 'valor' in dados[0]:
-                return f"A Taxa Selic Meta atual ditada pelo Banco Central do Brasil é de {dados[0]['valor']}% ao ano (Atualizada pontualmente em {dados[0]['data']})."
-        return "Falha nos servidores do Banco Central."
+            if dados and 'valor' in dados[0]:
+                taxa = float(dados[0]['valor'])
+                data = dados[0]['data']
+                taxa_mensal = (1 + taxa / 100) ** (1 / 12) - 1
+                return (
+                    f"🏦 **Taxa Selic Meta** (BCB)\n"
+                    f"- Anual: **{taxa:.2f}% a.a.**\n"
+                    f"- Equivalente mensal: {taxa_mensal*100:.3f}% a.m.\n"
+                    f"- Atualizada em: {data}"
+                )
+        return "Falha ao acessar o Banco Central. Tente novamente."
+    except requests.Timeout:
+        return "API do Banco Central indisponível. Tente novamente."
     except Exception as e:
-        return f"Erro de conexão com BCB: {e}"
+        logger.error(f"Erro Selic: {e}")
+        return f"Erro: {e}"
+
+@tool
+def calcular_orcamento_50_30_20(renda_mensal: float) -> str:
+    """
+    Aplica a regra de orçamento 50/30/20 para uma renda mensal.
+    Use quando o usuário perguntar como distribuir o salário, montar um orçamento
+    ou controlar gastos mensais.
+    """
+    if renda_mensal <= 0:
+        return "Renda deve ser positiva."
+    necessidades = renda_mensal * 0.50
+    desejos = renda_mensal * 0.30
+    investimento = renda_mensal * 0.20
+    return (
+        f"📋 **Regra 50/30/20 para R$ {renda_mensal:,.2f}**\n\n"
+        f"| Categoria | % | Valor |\n"
+        f"|---|---|---|\n"
+        f"| 🏠 Necessidades (moradia, alimentação, transporte) | 50% | R$ {necessidades:,.2f} |\n"
+        f"| 🎯 Desejos (lazer, roupas, restaurantes) | 30% | R$ {desejos:,.2f} |\n"
+        f"| 💰 Investimentos e reserva de emergência | 20% | R$ {investimento:,.2f} |"
+    )
+
+@tool
+def calcular_reserva_emergencia(gasto_mensal: float, meses: int = 6) -> str:
+    """
+    Calcula o valor ideal de reserva de emergência.
+    Use quando o usuário perguntar sobre segurança financeira, quanto guardar
+    para emergências ou por onde começar a investir.
+    O parâmetro meses representa quantos meses de cobertura (padrão: 6).
+    """
+    if gasto_mensal <= 0:
+        return "Gasto mensal deve ser positivo."
+    meses = max(3, min(meses, 12))
+    total = gasto_mensal * meses
+    return (
+        f"🛡️ **Reserva de Emergência**\n"
+        f"- Gastos mensais: R$ {gasto_mensal:,.2f}\n"
+        f"- Cobertura: {meses} meses\n"
+        f"- **Meta: R$ {total:,.2f}**\n\n"
+        f"📌 Onde guardar: Tesouro Selic, CDB com liquidez diária ou conta remunerada."
+    )
+
+TOOLS = [
+    calculadora_juros_compostos,
+    buscar_cotacao_moeda,
+    buscar_taxa_selic,
+    calcular_orcamento_50_30_20,
+    calcular_reserva_emergencia,
+]
+
+TOOL_MAP = {t.name: t for t in TOOLS}
+
+# ─────────────────────────────────────────────
+# AGENTE
+# ─────────────────────────────────────────────
 
 class AgenteFinanceiro:
+    MAX_ITERATIONS = 5  # proteção contra loop infinito
+
     def __init__(self, api_key=None, model_name="gemini-2.5-flash"):
         key = api_key or os.environ.get("GOOGLE_API_KEY")
         if not key:
             raise ValueError("Google API Key não fornecida.")
-
         self.llm = ChatGoogleGenerativeAI(
             model=model_name,
             google_api_key=key,
-            temperature=0.2
-        ).bind_tools([calculadora_juros_compostos, buscar_cotacao_moeda, buscar_taxa_selic])
-        
-    def invoke(self, inputs):
-        user_input = inputs.get("input", "")
-        history = inputs.get("history", [])
-        
-        system_prompt = (
-            "Você é a AG Finance, um Planejador Financeiro e Assistente Pessoal superinteligente.\n"
-            "REGRAS DIRETAS (Siga à risca): "
-            "1. Você entende de TUDO sobre finanças pessoais: cálculos, inflação (IPCA), taxas de juros (Selic), economia geral e orçamentos. "
-            "2. MEMÓRIA ATIVA: O usuário pode digitar gastos pontuais. Lembre-se disso com base no histórico que lhe foi passado. Some os valores quando ele pedir o saldo ou o orçamento mensal. "
-            "3. Quando o usuário pedir qualquer simulação matemática exata envolvendo anos/meses e taxas compostas, SEMPRE utilize a calculadora_juros_compostos (tool). "
-            "4. Se receber blocos grandes como extratos ou faturas, leia as entrelinhas e atue como analista separando os gastos por categorias (em tabelas markdown limpas). "
-            "5. Seja prestativa, elegante, responda em Português limpo utilizando formatação Markdown (negritos, listas e tabelas)."
+            temperature=0.2,
+        ).bind_tools(TOOLS)
+
+    def _build_system_prompt(self, user_info: dict | None) -> str:
+        base = (
+            "Você é a **AG Finance**, uma assistente financeira pessoal inteligente e elegante.\n\n"
+            "## Suas capacidades\n"
+            "- Planejamento financeiro pessoal e orçamento\n"
+            "- Simulações de investimento com juros compostos\n"
+            "- Cotações de moedas em tempo real\n"
+            "- Taxa Selic e renda fixa\n"
+            "- Análise de extratos e faturas (tabelas markdown por categoria)\n"
+            "- Regras de orçamento (50/30/20, reserva de emergência)\n\n"
+            "## Regras\n"
+            "1. Responda sempre em Português claro, usando Markdown (negrito, listas, tabelas).\n"
+            "2. Para cálculos exatos com taxas e prazos, USE as ferramentas disponíveis.\n"
+            "3. Seja direto e objetivo. Evite respostas longas sem necessidade.\n"
+            "4. Quando receber um extrato ou fatura, categorize os gastos em tabela markdown.\n"
+            "5. Nunca invente valores — use as ferramentas para dados em tempo real.\n"
         )
 
-        messages = [("system", system_prompt)]
-        
+        if user_info:
+            renda = user_info.get("renda_mensal", 0)
+            gastos = user_info.get("gastos_fixos", 0)
+            objetivo = user_info.get("objetivo_fin", "")
+            nome = user_info.get("name", "").split()[0]
+
+            perfil = f"\n## Perfil do usuário — {nome}\n"
+            if renda > 0:
+                perfil += f"- Renda mensal: R$ {renda:,.2f}\n"
+                if gastos > 0:
+                    sobra = renda - gastos
+                    perfil += f"- Gastos fixos estimados: R$ {gastos:,.2f} (sobra ~R$ {sobra:,.2f}/mês)\n"
+            if objetivo:
+                perfil += f"- Objetivo financeiro: {objetivo}\n"
+            perfil += "\nPersonalize suas respostas com base neste perfil quando relevante.\n"
+            base += perfil
+
+        return base
+
+    def invoke(self, inputs: dict) -> dict:
+        user_input = inputs.get("input", "")
+        history = inputs.get("history", [])
+        user_info = inputs.get("user_info", None)
+
+        messages = [("system", self._build_system_prompt(user_info))]
         for msg in history:
             role = "human" if msg["role"] == "user" else "ai"
             messages.append((role, msg["content"]))
-            
         messages.append(("human", user_input))
-        
-        response = self.llm.invoke(messages)
-        messages.append(response)
-        
-        mapa_ferramentas = {
-            'calculadora_juros_compostos': calculadora_juros_compostos,
-            'buscar_cotacao_moeda': buscar_cotacao_moeda,
-            'buscar_taxa_selic': buscar_taxa_selic
-        }
 
-        if hasattr(response, 'tool_calls') and response.tool_calls:
-            for tool_call in response.tool_calls:
-                nome_ferramenta = tool_call['name']
-                if nome_ferramenta in mapa_ferramentas:
-                    output = mapa_ferramentas[nome_ferramenta].invoke(tool_call['args'])
-                    messages.append(ToolMessage(content=str(output), tool_call_id=tool_call['id']))
-            
+        for iteration in range(self.MAX_ITERATIONS):
             response = self.llm.invoke(messages)
-            
+            messages.append(response)
+
+            if not (hasattr(response, "tool_calls") and response.tool_calls):
+                break  # sem mais ferramentas, resposta final
+
+            for tool_call in response.tool_calls:
+                nome = tool_call["name"]
+                if nome in TOOL_MAP:
+                    try:
+                        output = TOOL_MAP[nome].invoke(tool_call["args"])
+                    except Exception as e:
+                        output = f"Erro ao executar {nome}: {e}"
+                    messages.append(ToolMessage(content=str(output), tool_call_id=tool_call["id"]))
+                else:
+                    messages.append(ToolMessage(content=f"Ferramenta '{nome}' não encontrada.", tool_call_id=tool_call["id"]))
+        else:
+            logger.warning("Agente atingiu MAX_ITERATIONS sem resposta final.")
+            return {"output": "Desculpe, não consegui processar sua solicitação. Tente reformular a pergunta."}
+
         texto_final = response.content
         if isinstance(texto_final, list):
-            # Limpar qualquer lista de dicts (ex: [{'type': 'text', 'text': 'ola'}]) para string unica
-            blocos_texto = []
-            for item in texto_final:
-                if isinstance(item, dict) and "text" in item:
-                    blocos_texto.append(item["text"])
-                else:
-                    blocos_texto.append(str(item))
-            texto_final = "\n".join(blocos_texto)
-        else:
-            texto_final = str(texto_final)
-            
-        return {"output": texto_final}
+            texto_final = "\n".join(
+                item["text"] if isinstance(item, dict) and "text" in item else str(item)
+                for item in texto_final
+            )
+        return {"output": str(texto_final)}
 
-def criar_agente(api_key=None, model_name="gemini-2.5-flash"):
+
+# ─────────────────────────────────────────────
+# HELPERS
+# ─────────────────────────────────────────────
+
+def criar_agente(api_key=None, model_name="gemini-2.5-flash") -> AgenteFinanceiro:
     return AgenteFinanceiro(api_key, model_name)
 
 def gerar_titulo_curto(mensagem: str, api_key: str = None) -> str:
@@ -135,9 +259,15 @@ def gerar_titulo_curto(mensagem: str, api_key: str = None) -> str:
     if not key:
         return "Nova Consulta"
     try:
-        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=key, temperature=0.5)
-        resp = llm.invoke([("system", "Você é um gerador de títulos. Resuma a mensagem em 3 palavras. Retorne apenas o título (sem aspas e sem pontuação fina ou hashtags)."), ("human", mensagem)])
-        t = resp.content.strip()
-        return t[:30] # Limit safety
-    except:
+        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=key, temperature=0.3)
+        resp = llm.invoke([
+            ("system", "Resuma a mensagem em até 4 palavras em português. Retorne APENAS o título, sem aspas, pontuação ou markdown."),
+            ("human", mensagem)
+        ])
+        titulo = resp.content.strip()
+        if isinstance(titulo, list):
+            titulo = titulo[0].get("text", "Consulta") if titulo else "Consulta"
+        return str(titulo)[:35]
+    except Exception as e:
+        logger.warning(f"Erro ao gerar título: {e}")
         return "Consulta Finanças"
