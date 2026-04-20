@@ -182,9 +182,10 @@ class AgenteFinanceiro:
             "## Regras\n"
             "1. Responda sempre em Português claro, usando Markdown (negrito, listas, tabelas).\n"
             "2. Para cálculos exatos com taxas e prazos, USE as ferramentas disponíveis.\n"
-            "3. Seja direto e objetivo. Evite respostas longas sem necessidade.\n"
+            "3. Seja EXTREMAMENTE conciso e vá direto ao ponto. Suas respostas devem ser curtas e objetivas.\n"
             "4. Quando receber um extrato ou fatura, categorize os gastos em tabela markdown.\n"
             "5. Nunca invente valores — use as ferramentas para dados em tempo real.\n"
+            "6. NUNCA se alongue em explicações não solicitadas. Seja breve e sucinto.\n"
         )
 
         if user_info:
