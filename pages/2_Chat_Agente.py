@@ -352,11 +352,16 @@ if c_b4.button("📈 Investir Sobra", use_container_width=True, help="Onde devo 
 if c_b5.button("💼 Regra Ideal", use_container_width=True, help="Regra Orçamentária"):
     btn_clicado = "O que é a regra 50-30-20 e como eu a aplicaria aos meus ganhos atuais?"
 
+st.markdown("💬 **Opções de Envio Adicionais:**")
+c_chat_opt1, c_chat_opt2 = st.columns(2)
+with c_chat_opt1:
+    file_input_chat = st.file_uploader("Anexar Fatura", type=["csv", "xls", "xlsx", "pdf"], label_visibility="collapsed")
+with c_chat_opt2:
+    audio_input = st.audio_input("Ou grave sua dúvida", label_visibility="collapsed")
+
 user_input = st.chat_input("Pergunte algo ou faça simulações de investimento!")
 
-audio_input = st.audio_input("Ou grave sua dúvida por voz")
 texto_audio = None
-
 if audio_input is not None:
     tamanho_audio = len(audio_input.getvalue())
     if st.session_state.get('ultimo_audio_size') != tamanho_audio:
@@ -378,7 +383,33 @@ if audio_input is not None:
             except Exception as e:
                 st.error(f"Erro no áudio: {e}")
 
-entrada_final = user_input or btn_clicado or texto_audio
+texto_arquivo = None
+if file_input_chat is not None:
+    tamanho_arquivo = len(file_input_chat.getvalue())
+    if st.session_state.get('ultimo_arquivo_chat_size') != tamanho_arquivo:
+        st.session_state.ultimo_arquivo_chat_size = tamanho_arquivo
+        with st.spinner("📄 Extraindo dados do arquivo..."):
+            conteudo_extraido = ""
+            extensao = file_input_chat.name.split('.')[-1].lower()
+            try:
+                if extensao == 'csv':
+                    conteudo_extraido = file_input_chat.getvalue().decode("utf-8")
+                elif extensao in ['xls', 'xlsx']:
+                    df = pd.read_excel(file_input_chat)
+                    conteudo_extraido = df.to_csv(index=False)
+                elif extensao == 'pdf':
+                    pdf_reader = PyPDF2.PdfReader(file_input_chat)
+                    for page in pdf_reader.pages:
+                        text = page.extract_text()
+                        if text:
+                            conteudo_extraido += text + "\n"
+                if conteudo_extraido:
+                    texto_arquivo = f"Aqui está o meu extrato anexado '{file_input_chat.name}':\n\n```\n{conteudo_extraido}\n```\n\nAnalise esses dados e dê sugestões financeiras se houver espaço."
+                    st.success(f"📎 Anexo lido: {file_input_chat.name}")
+            except Exception as e:
+                st.error(f"Erro no arquivo: {e}")
+
+entrada_final = user_input or btn_clicado or texto_audio or texto_arquivo
 
 if entrada_final:
     if st.session_state.get("current_session_id") is None:
