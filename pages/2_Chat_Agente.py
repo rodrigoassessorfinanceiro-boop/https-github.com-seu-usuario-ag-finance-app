@@ -6,6 +6,55 @@ import time
 from agent import criar_agente, gerar_titulo_curto
 from db import marcar_como_onboarded, update_onboarding_data, add_message, get_session_messages, create_session, get_user_sessions, get_onboarding_profile, log_activity
 
+st.markdown("""
+<style>
+body {
+    background-color: #0B1F3A;
+}
+
+.main {
+    background: linear-gradient(180deg, #0B1F3A 0%, #132F5C 100%);
+    color: white;
+}
+
+h1, h2, h3 {
+    color: #FFFFFF !important;
+}
+
+.gold {
+    color: #D4AF37 !important;
+    font-weight: 600;
+}
+
+.big-title {
+    font-size: 48px;
+    font-weight: 700;
+    color: #FFFFFF;
+}
+
+.subtitle {
+    font-size: 20px;
+    color: #C9D1E3;
+}
+
+.stButton>button {
+    background: linear-gradient(90deg, #D4AF37, #C9A227);
+    color: #0B1F3A;
+    font-weight: bold;
+    border-radius: 10px;
+    padding: 12px 24px;
+    border: none;
+}
+
+.card {
+    background: rgba(255,255,255,0.05);
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+</style>
+""", unsafe_allow_html=True)
+
 if "logado" not in st.session_state or not st.session_state.logado:
     st.switch_page("app.py")
 
@@ -124,14 +173,35 @@ obj = st.session_state.user_info.get('objetivo_fin', 'Nenhum')
 
 if renda > 0:
     st.markdown("### 📊 Seu Painel Financeiro")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Renda Mensal", f"R$ {renda:,.2f}")
-    c2.metric("Gastos Fixos", f"R$ {gastos:,.2f}")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Renda", f"R$ {renda:,.2f}")
+    c2.metric("Gastos", f"R$ {gastos:,.2f}")
+    
     pct = (gastos / renda) * 100
     if pct > 60:
-        c3.metric("Renda Comprometida", f"🔴 {pct:.1f}% (Alto!)")
+        c3.metric("Renda Comprometida", f"🔴 {pct:.1f}%")
     else:
         c3.metric("Renda Comprometida", f"🟢 {pct:.1f}%")
+        
+    score_val = 0
+    if pct <= 50:
+        score_val = 800 + ((50 - pct) / 50.0) * 200
+    elif pct <= 100:
+        score_val = 800 - ((pct - 50) / 50.0) * 800
+    else:
+        score_val = 0
+    score_val = max(0, min(1000, int(score_val)))
+    
+    if score_val >= 800:
+        cat_score = "🌟 Excelente"
+    elif score_val >= 500:
+        cat_score = "👍 Bom"
+    elif score_val >= 300:
+        cat_score = "⚠️ Atenção"
+    else:
+        cat_score = "🚨 Crítico"
+        
+    c4.metric("Score Financeiro", f"{score_val}", cat_score, delta_color="off")
     st.markdown("---")
 
 with st.sidebar:
@@ -283,7 +353,32 @@ if c_b5.button("💼 Regra Ideal", use_container_width=True, help="Regra Orçame
     btn_clicado = "O que é a regra 50-30-20 e como eu a aplicaria aos meus ganhos atuais?"
 
 user_input = st.chat_input("Pergunte algo ou faça simulações de investimento!")
-entrada_final = user_input or btn_clicado
+
+audio_input = st.audio_input("Ou grave sua dúvida por voz")
+texto_audio = None
+
+if audio_input is not None:
+    tamanho_audio = len(audio_input.getvalue())
+    if st.session_state.get('ultimo_audio_size') != tamanho_audio:
+        st.session_state.ultimo_audio_size = tamanho_audio
+        with st.spinner("🎙️ Transcrevendo áudio..."):
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=current_key)
+                audio_data = audio_input.getvalue()
+                
+                modelo_transc = genai.GenerativeModel("gemini-1.5-flash")
+                resp_transc = modelo_transc.generate_content([
+                    "Responda apenas com a transcrição em texto claro e direto do áudio fornecido em português-br. Se inaudível, responda 'inação'.",
+                    {"mime_type": "audio/wav", "data": audio_data}
+                ])
+                if resp_transc.text and "inação" not in resp_transc.text.lower():
+                    texto_audio = resp_transc.text.strip()
+                    st.success(f"🗣️ Escutei: {texto_audio}")
+            except Exception as e:
+                st.error(f"Erro no áudio: {e}")
+
+entrada_final = user_input or btn_clicado or texto_audio
 
 if entrada_final:
     if st.session_state.get("current_session_id") is None:
@@ -304,7 +399,12 @@ if entrada_final:
                 # Global Biological Memory Injection
                 biomem = get_onboarding_profile(st.session_state.user_info['id'])
                 if biomem and not any("MEMÓRIA GLOBAL DO USUÁRIO" in m['content'] for m in historico_ai):
-                    historico_ai.insert(0, {"role": "user", "content": biomem + f"\n[METADADOS ATUAIS] Ganho: {renda}, Gasto Fixo: {gastos}, Objetivo: {obj}"})
+                    extra_funil = ""
+                    if st.session_state.user_info.get("dados_funil"):
+                        df = st.session_state.user_info["dados_funil"]
+                        extra_funil = f"\n[DADOS DO DIAGNÓSTICO] Pessoas lar: {df.get('pessoas')}, Sobra Mês: {df.get('sobra')}, Dívidas: {df.get('divida')}, Foco: {df.get('gasto')}."
+                    
+                    historico_ai.insert(0, {"role": "user", "content": biomem + f"\n[METADADOS ATUAIS] Ganho: {renda}, Gasto: {gastos}, Objetivo: {obj}" + extra_funil})
                     historico_ai.insert(1, {"role": "assistant", "content": "Memória Ativa: Entendido! Carreguei todo o seu histórico de faturas e gastos iniciais."})
                     
                 resposta = st.session_state.agente.invoke({
