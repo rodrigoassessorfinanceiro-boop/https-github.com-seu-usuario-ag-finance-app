@@ -9,56 +9,350 @@ init_db()
 st.set_page_config(page_title="AG Finanças", layout="wide", initial_sidebar_state="collapsed")
 
 # -------------------------
-# CSS CUSTOM (ESTILO SAFRA)
+# CSS CUSTOM (ESTILO SAFRA PREMIUM)
 # -------------------------
-st.markdown("""
+CSS = """
 <style>
-body {
-    background-color: #0B1F3A;
+/* ── BASE ─────────────────────────────────── */
+html, body, [data-testid="stAppViewContainer"] {
+    background: #0B1F3A !important;
+}
+[data-testid="stAppViewContainer"] > .main {
+    background: linear-gradient(160deg, #0B1F3A 0%, #0F2847 50%, #132F5C 100%) !important;
+}
+[data-testid="stHeader"] {
+    background: transparent !important;
+}
+section[data-testid="stSidebar"] {
+    background: #081629 !important;
+    border-right: 1px solid rgba(212,175,55,0.12) !important;
 }
 
-.main {
-    background: linear-gradient(180deg, #0B1F3A 0%, #132F5C 100%);
-    color: white;
-}
-
-h1, h2, h3 {
+/* ── TIPOGRAFIA ───────────────────────────── */
+h1, h2, h3, h4, h5, h6,
+[data-testid="stMarkdownContainer"] h1,
+[data-testid="stMarkdownContainer"] h2,
+[data-testid="stMarkdownContainer"] h3 {
     color: #FFFFFF !important;
+    letter-spacing: -0.3px;
+}
+p, li, label, span {
+    color: #C9D1E3 !important;
 }
 
-.gold {
-    color: #D4AF37 !important;
-    font-weight: 600;
-}
+/* ── CLASSES UTILITÁRIAS ──────────────────── */
+.gold { color: #D4AF37 !important; font-weight: 600; }
+.muted { color: #8FA4C8 !important; }
 
 .big-title {
-    font-size: 48px;
-    font-weight: 700;
-    color: #FFFFFF;
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 800;
+    color: #FFFFFF !important;
+    line-height: 1.15;
+    letter-spacing: -0.5px;
 }
+.big-title .accent { color: #D4AF37; }
 
 .subtitle {
-    font-size: 20px;
-    color: #C9D1E3;
+    font-size: 16px;
+    color: #8FA4C8 !important;
+    line-height: 1.6;
+    margin-top: 8px;
 }
 
-.stButton>button {
-    background: linear-gradient(90deg, #D4AF37, #C9A227);
-    color: #0B1F3A;
-    font-weight: bold;
-    border-radius: 10px;
-    padding: 12px 24px;
-    border: none;
+/* ── BADGE ────────────────────────────────── */
+.badge-free {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(212,175,55,0.10);
+    border: 1px solid rgba(212,175,55,0.30);
+    color: #D4AF37 !important;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 14px;
+    border-radius: 20px;
+    margin-bottom: 18px;
+    letter-spacing: 0.3px;
+}
+.badge-free::before {
+    content: "";
+    width: 6px; height: 6px;
+    background: #D4AF37;
+    border-radius: 50%;
 }
 
+/* ── CARDS ────────────────────────────────── */
 .card {
-    background: rgba(255,255,255,0.05);
-    padding: 20px;
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 14px;
+    padding: 20px 22px;
+    margin-bottom: 12px;
+    transition: border-color 0.2s;
+}
+.card:hover {
+    border-color: rgba(212,175,55,0.18);
+}
+.card-gold {
+    background: rgba(212,175,55,0.06);
+    border: 1px solid rgba(212,175,55,0.20);
+    border-radius: 14px;
+    padding: 20px 22px;
+    margin-bottom: 12px;
+}
+.card-week {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-left: 3px solid #D4AF37;
+    border-radius: 0 12px 12px 0;
+    padding: 14px 18px;
+    margin-bottom: 10px;
+}
+.card-week .week-tag {
+    font-size: 11px;
+    color: #D4AF37 !important;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+.card-week .week-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #FFFFFF !important;
+    margin-bottom: 3px;
+}
+.card-week .week-desc {
+    font-size: 13px;
+    color: #8FA4C8 !important;
+    line-height: 1.5;
+}
+
+/* ── SCORE ────────────────────────────────── */
+.score-wrap {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px 0;
+}
+.score-number {
+    font-size: 64px;
+    font-weight: 800;
+    line-height: 1;
+    color: #D4AF37 !important;
+}
+.score-number.low  { color: #F44336 !important; }
+.score-number.mid  { color: #FF9800 !important; }
+.score-number.high { color: #4CAF50 !important; }
+.score-label {
+    font-size: 13px;
+    color: #8FA4C8 !important;
+    margin-bottom: 6px;
+}
+.score-objetivo {
+    display: inline-block;
+    background: rgba(212,175,55,0.10);
+    border: 1px solid rgba(212,175,55,0.25);
+    color: #D4AF37 !important;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+}
+
+/* ── ALERT ITEMS ──────────────────────────── */
+.alert-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 11px 15px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    color: #C9D1E3 !important;
+}
+.alert-item.red   { border-left: 3px solid #F44336; border-radius: 0 10px 10px 0; }
+.alert-item.amber { border-left: 3px solid #FF9800; border-radius: 0 10px 10px 0; }
+
+/* ── ECO CARD ─────────────────────────────── */
+.eco-highlight {
+    background: rgba(212,175,55,0.08);
+    border: 1px solid rgba(212,175,55,0.22);
+    border-radius: 14px;
+    padding: 18px 22px;
+    text-align: center;
+    margin: 16px 0;
+}
+.eco-highlight .eco-label {
+    font-size: 13px;
+    color: #8FA4C8 !important;
+    margin-bottom: 4px;
+}
+.eco-highlight .eco-value {
+    font-size: 36px;
+    font-weight: 800;
+    color: #D4AF37 !important;
+}
+
+/* ── BOTÕES ───────────────────────────────── */
+.stButton > button {
+    background: linear-gradient(135deg, #D4AF37 0%, #B8922A 100%) !important;
+    color: #0B1F3A !important;
+    font-weight: 700 !important;
+    font-size: 14px !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 13px 28px !important;
+    letter-spacing: 0.2px;
+    transition: opacity 0.15s, transform 0.1s !important;
+}
+.stButton > button:hover {
+    opacity: 0.92 !important;
+    transform: translateY(-1px) !important;
+}
+.stButton > button:active {
+    transform: translateY(0) scale(0.98) !important;
+}
+.btn-secondary > button {
+    background: transparent !important;
+    color: #D4AF37 !important;
+    border: 1px solid rgba(212,175,55,0.35) !important;
+}
+.btn-secondary > button:hover {
+    background: rgba(212,175,55,0.08) !important;
+    opacity: 1 !important;
+}
+
+/* ── INPUTS ───────────────────────────────── */
+[data-testid="stTextInput"] input,
+[data-testid="stSelectbox"] > div > div,
+[data-testid="stTextArea"] textarea {
+    background: rgba(255,255,255,0.05) !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    border-radius: 10px !important;
+    color: #FFFFFF !important;
+    font-size: 14px !important;
+    padding: 10px 14px !important;
+    transition: border-color 0.2s !important;
+}
+[data-testid="stTextInput"] input:focus,
+[data-testid="stTextArea"] textarea:focus {
+    border-color: rgba(212,175,55,0.5) !important;
+    box-shadow: 0 0 0 3px rgba(212,175,55,0.08) !important;
+}
+[data-testid="stTextInput"] label,
+[data-testid="stTextArea"] label,
+[data-testid="stSelectbox"] label {
+    color: #C9D1E3 !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    margin-bottom: 5px !important;
+}
+
+/* ── RADIO / FORM ─────────────────────────── */
+[data-testid="stRadio"] label {
+    color: #C9D1E3 !important;
+    font-size: 14px !important;
+}
+[data-testid="stRadio"] [data-testid="stMarkdownContainer"] p {
+    color: #FFFFFF !important;
+    font-weight: 500 !important;
+    margin-bottom: 6px !important;
+}
+
+/* ── TABS ─────────────────────────────────── */
+[data-testid="stTabs"] [role="tab"] {
+    color: #8FA4C8 !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    border-bottom: 2px solid transparent !important;
+    padding: 8px 18px !important;
+}
+[data-testid="stTabs"] [role="tab"][aria-selected="true"] {
+    color: #D4AF37 !important;
+    border-bottom-color: #D4AF37 !important;
+}
+[data-testid="stTabs"] [data-baseweb="tab-list"] {
+    background: transparent !important;
+    border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+/* ── PROGRESS BAR ─────────────────────────── */
+[data-testid="stProgress"] > div > div {
+    background: rgba(255,255,255,0.08) !important;
+    border-radius: 4px !important;
+    height: 4px !important;
+}
+[data-testid="stProgress"] > div > div > div {
+    background: linear-gradient(90deg, #D4AF37, #B8922A) !important;
+    border-radius: 4px !important;
+}
+
+/* ── MENSAGENS (success / error / info) ───── */
+[data-testid="stAlert"] {
+    border-radius: 12px !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    background: rgba(255,255,255,0.03) !important;
+}
+
+/* ── DIVIDER ──────────────────────────────── */
+hr {
+    border-color: rgba(255,255,255,0.08) !important;
+    margin: 20px 0 !important;
+}
+
+/* ── SPINNER ──────────────────────────────── */
+[data-testid="stSpinner"] {
+    color: #D4AF37 !important;
 }
 </style>
-""", unsafe_allow_html=True)
+"""
+
+st.markdown(CSS, unsafe_allow_html=True)
+
+# ── COMPONENTES HTML ──────────────────────────
+def badge_free(texto="Grátis para começar"):
+    return f'<div class="badge-free">{texto}</div>'
+
+def big_title(linha1, accent=""):
+    partes = linha1.replace(accent, f'<span class="accent">{accent}</span>') if accent else linha1
+    return f'<div class="big-title">{partes}</div>'
+
+def score_display(score, objetivo=""):
+    cls = "high" if score >= 70 else ("mid" if score >= 50 else "low")
+    obj_html = f'<div class="score-objetivo">{objetivo}</div>' if objetivo else ""
+    return f"""
+    <div class="score-wrap">
+        <div class="score-number {cls}">{score}</div>
+        <div>
+            <div class="score-label">Saúde financeira · /100</div>
+            {obj_html}
+        </div>
+    </div>
+    """
+
+def alert_item(texto, nivel="amber"):
+    return f'<div class="alert-item {nivel}">{texto}</div>'
+
+def eco_card(valor, label="Potencial de economia identificado"):
+    return f"""
+    <div class="eco-highlight">
+        <div class="eco-label">{label}</div>
+        <div class="eco-value">R$ {valor:,.0f}<span style="font-size:18px;font-weight:500">/mês</span></div>
+    </div>
+    """
+
+def card_semana(semana, titulo, descricao):
+    return f"""
+    <div class="card-week">
+        <div class="week-tag">{semana}</div>
+        <div class="week-title">{titulo}</div>
+        <div class="week-desc">{descricao}</div>
+    </div>
+    """
 
 if 'logado' not in st.session_state:
     st.session_state.logado = False
