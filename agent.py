@@ -14,30 +14,50 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────
 
 @tool
-def calculadora_juros_compostos(aporte_mensal: float, taxa_juros_anual: float, anos: int) -> str:
+def calculadora_juros_compostos(aporte_mensal: float, taxa_juros_anual: float, anos: int = 0, meses: int = 0, detalhar_tabela: bool = False) -> str:
     """
     Calcula o montante final de um investimento com aportes mensais e juros compostos.
-    Use quando o usuário perguntar sobre simulações de investimento, aposentadoria ou
-    crescimento de patrimônio ao longo do tempo.
+    Use quando o usuário perguntar sobre simulações de investimento, aposentadoria ou crescimento de patrimônio.
     O parâmetro taxa_juros_anual deve ser em % (ex: 10 para 10% a.a.).
+    Forneça o período em 'anos', 'meses' ou ambos.
+    Se o usuário solicitar evolução "mês a mês", passe detalhar_tabela=True.
     """
-    if aporte_mensal <= 0 or taxa_juros_anual <= 0 or anos <= 0:
-        return "Valores inválidos: aporte, taxa e anos devem ser positivos."
+    if aporte_mensal <= 0 or taxa_juros_anual <= 0 or (anos <= 0 and meses <= 0):
+        return "Valores inválidos: aporte, taxa e tempo (anos/meses) devem ser maiores que zero."
+    
     taxa_mensal = (1 + taxa_juros_anual / 100) ** (1 / 12) - 1
-    meses = anos * 12
+    meses_totais = (anos * 12) + meses
+    
     montante = 0.0
-    for _ in range(meses):
+    tabela_texto = ""
+    
+    if detalhar_tabela:
+        tabela_texto += "\n\n**Evolução Mês a Mês detalhada:**\n| Mês | Aporte Acumulado | Juros do Mês | Montante Acumulado |\n|---|---|---|---|\n"
+        
+    for i in range(1, meses_totais + 1):
         montante = (montante + aporte_mensal) * (1 + taxa_mensal)
-    total_investido = aporte_mensal * meses
+        if detalhar_tabela and i <= 240:  # Limite lógico de 20 anos na tabela
+            juros_acumulado = montante - (aporte_mensal * i)
+            tabela_texto += f"| {i} | R$ {aporte_mensal*i:,.2f} | R$ {juros_acumulado:,.2f} | R$ {montante:,.2f} |\n"
+
+    total_investido = aporte_mensal * meses_totais
     rendimento = montante - total_investido
-    return (
-        f"📊 **Simulação de {anos} anos**\n"
+    
+    resumo = (
+        f"📊 **Simulação de {meses_totais} meses**\n"
         f"- Aporte mensal: R$ {aporte_mensal:,.2f}\n"
         f"- Taxa: {taxa_juros_anual:.2f}% a.a. ({taxa_mensal*100:.3f}% a.m.)\n"
         f"- Total investido: R$ {total_investido:,.2f}\n"
-        f"- Rendimento: R$ {rendimento:,.2f}\n"
+        f"- Rendimento (Juros): R$ {rendimento:,.2f}\n"
         f"- **Montante final: R$ {montante:,.2f}**"
     )
+    
+    if detalhar_tabela:
+        if meses_totais > 240:
+             tabela_texto += "\n*(A tabela foi limitada aos primeiros 240 meses para não estourar a tela)*\n"
+        resumo += tabela_texto
+        
+    return resumo
 
 @tool
 def buscar_cotacao_moeda(moeda: str) -> str:
