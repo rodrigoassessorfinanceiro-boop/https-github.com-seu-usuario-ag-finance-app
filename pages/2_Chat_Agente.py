@@ -3,6 +3,7 @@ import os
 import pandas as pd
 import PyPDF2
 import time
+import re
 from agent import criar_agente, gerar_titulo_curto
 from db import marcar_como_onboarded, update_onboarding_data, add_message, get_session_messages, create_session, get_user_sessions, get_onboarding_profile, log_activity
 
@@ -336,6 +337,14 @@ if uploaded_file is not None and getattr(st.session_state, "ultimo_arquivo", Non
         except Exception as e:
             st.error(f"Erro ao processar o arquivo: {e}")
 
+def format_text_links(texto):
+    if not isinstance(texto, str): return str(texto)
+    # Substituir links markdown [texto](url) por html tag com target _blank
+    texto = re.sub(r'\[([^\]]+)\]\((https?://[^\)]+)\)', r'<a href="\2" target="_blank" style="color: #DFA14F; font-weight: bold; text-decoration: underline;">\1</a>', texto)
+    # Extra: encontrar raw urls soltas (que não estão dentro de tags html) e torná-las links
+    # (simplificado: não tentamos regex hyper-complexa aqui para evitar quebrar html, mas tratar raw URLS que sobraram)
+    return texto
+
 # EXIBIR MENSAGENS
 for msg in st.session_state.mensagens:
     texto_chat = msg["content"]
@@ -347,8 +356,10 @@ for msg in st.session_state.mensagens:
     if texto_chat.startswith("Aqui está o meu extrato financeiro"):
         texto_chat = "📁 *(Arquivo de extrato lido pela IA)*"
         
+    texto_chat_formatado = format_text_links(texto_chat)
+        
     with st.chat_message(msg["role"]):
-        st.markdown(texto_chat)
+        st.markdown(texto_chat_formatado, unsafe_allow_html=True)
 
 st.markdown("💡 **Apostas Seguras (Clique para perguntar):**")
 c_b1, c_b2, c_b3, c_b4, c_b5 = st.columns(5)
@@ -432,7 +443,7 @@ if entrada_final:
     st.session_state.mensagens.append({"role": "user", "content": entrada_final})
     add_message(st.session_state.current_session_id, st.session_state.user_info['id'], "user", entrada_final)
     with st.chat_message("user"):
-        st.markdown(entrada_final)
+        st.markdown(format_text_links(entrada_final), unsafe_allow_html=True)
 
     with st.chat_message("assistant"):
         with st.spinner("Analisando as informações financeiras..."):
@@ -445,7 +456,7 @@ if entrada_final:
                     "user_info": st.session_state.user_info
                 })
                 texto_resposta = resposta.get("output", "Desculpe, não consegui processar isso.")
-                st.markdown(texto_resposta)
+                st.markdown(format_text_links(texto_resposta), unsafe_allow_html=True)
                 st.session_state.mensagens.append({"role": "assistant", "content": texto_resposta})
                 add_message(st.session_state.current_session_id, st.session_state.user_info['id'], "assistant", texto_resposta)
                 log_activity(st.session_state.user_info['id'], "Chat LLM Agente")
