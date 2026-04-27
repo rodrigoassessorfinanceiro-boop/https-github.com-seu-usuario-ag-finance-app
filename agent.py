@@ -231,8 +231,13 @@ class AgenteFinanceiro:
         user_input = inputs.get("input", "")
         history = inputs.get("history", [])
         user_info = inputs.get("user_info", None)
+        global_memory = inputs.get("global_memory", "")
 
-        messages = [("system", self._build_system_prompt(user_info))]
+        sys_prompt = self._build_system_prompt(user_info)
+        if global_memory:
+            sys_prompt += "\n" + global_memory + "\n"
+
+        messages = [("system", sys_prompt)]
         for msg in history:
             role = "human" if msg["role"] == "user" else "ai"
             messages.append((role, msg["content"]))

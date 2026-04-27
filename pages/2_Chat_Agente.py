@@ -5,7 +5,7 @@ import PyPDF2
 import time
 import re
 from agent import criar_agente, gerar_titulo_curto
-from db import marcar_como_onboarded, update_onboarding_data, add_message, get_session_messages, create_session, get_user_sessions, get_onboarding_profile, log_activity
+from db import marcar_como_onboarded, update_onboarding_data, add_message, get_session_messages, create_session, get_user_sessions, get_onboarding_profile, log_activity, update_saldos
 
 st.markdown("""
 <style>
@@ -66,7 +66,9 @@ with st.sidebar:
     if st.button("🚪 Sair com segurança", use_container_width=True):
         st.session_state.logado = False
         st.session_state.user_info = None
-        st.session_state.current_session_id = None
+        for key in ["current_session_id", "mensagens", "chat_initialized"]:
+            if key in st.session_state:
+                del st.session_state[key]
         st.switch_page("app.py")
         
     if st.session_state.user_info.get("is_admin"):
@@ -135,7 +137,8 @@ if not st.session_state.user_info.get('onboarded', False):
                         resposta = ag_temp.invoke({
                             "input": texto_final, 
                             "history": [],
-                            "user_info": st.session_state.user_info
+                            "user_info": st.session_state.user_info,
+                            "global_memory": get_onboarding_profile(st.session_state.user_info['id'])
                         })
                         
                         texto_res = resposta.get("output", "Tudo certo! Como começamos?")
@@ -174,39 +177,42 @@ if st.session_state.get("aviso_inatividade"):
 
 renda = st.session_state.user_info.get('renda_mensal', 0.0)
 gastos = st.session_state.user_info.get('gastos_fixos', 0.0)
+saldo_cc = st.session_state.user_info.get('saldo_cc', 0.0)
+saldo_aplicacoes = st.session_state.user_info.get('saldo_aplicacoes', 0.0)
 obj = st.session_state.user_info.get('objetivo_fin', 'Nenhum')
+saldo_mes = renda - gastos
 
 if renda > 0:
     st.markdown("### 📊 Seu Painel Financeiro")
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Renda", f"R$ {renda:,.2f}")
-    c2.metric("Gastos", f"R$ {gastos:,.2f}")
     
-    pct = (gastos / renda) * 100
-    if pct > 60:
-        c3.metric("Renda Comprometida", f"🔴 {pct:.1f}%")
-    else:
-        c3.metric("Renda Comprometida", f"🟢 {pct:.1f}%")
-        
-    score_val = 0
-    if pct <= 50:
-        score_val = 800 + ((50 - pct) / 50.0) * 200
-    elif pct <= 100:
-        score_val = 800 - ((pct - 50) / 50.0) * 800
-    else:
-        score_val = 0
-    score_val = max(0, min(1000, int(score_val)))
+    with st.expander("✏️ Atualizar meus dados do mês"):
+        with st.form("form_atualizar_dados"):
+            cols = st.columns(4)
+            nova_renda = cols[0].number_input("Receitas (Renda)", value=renda, step=100.0, format="%.2f")
+            novos_gastos = cols[1].number_input("Despesas (Gastos)", value=gastos, step=100.0, format="%.2f")
+            novo_cc = cols[2].number_input("Contas Correntes", value=saldo_cc, step=100.0, format="%.2f")
+            nova_aplicacao = cols[3].number_input("Aplicações", value=saldo_aplicacoes, step=100.0, format="%.2f")
+            if st.form_submit_button("Salvar Valores"):
+                update_onboarding_data(st.session_state.user_info['id'], nova_renda, novos_gastos, obj)
+                update_saldos(st.session_state.user_info['id'], novo_cc, nova_aplicacao)
+                st.session_state.user_info['renda_mensal'] = nova_renda
+                st.session_state.user_info['gastos_fixos'] = novos_gastos
+                st.session_state.user_info['saldo_cc'] = novo_cc
+                st.session_state.user_info['saldo_aplicacoes'] = nova_aplicacao
+                st.success("Dados atualizados com sucesso!")
+                st.rerun()
+
+    # Cards principais
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("Receitas", f"R$ {renda:,.2f}")
+    c2.metric("Despesas", f"R$ {gastos:,.2f}")
     
-    if score_val >= 800:
-        cat_score = "🌟 Excelente"
-    elif score_val >= 500:
-        cat_score = "👍 Bom"
-    elif score_val >= 300:
-        cat_score = "⚠️ Atenção"
-    else:
-        cat_score = "🚨 Crítico"
-        
-    c4.metric("Score Financeiro", f"{score_val}", cat_score, delta_color="off")
+    cor_saldo = "🟢" if saldo_mes >= 0 else "🔴"
+    c3.metric("Saldo do Mês", f"{cor_saldo} R$ {saldo_mes:,.2f}")
+    
+    c4.metric("Contas Correntes", f"R$ {saldo_cc:,.2f}")
+    c5.metric("Aplicações", f"R$ {saldo_aplicacoes:,.2f}")
+    
     st.markdown("---")
 
 with st.sidebar:
@@ -257,7 +263,8 @@ if btn_pdf:
                 resposta_pdf = ag_temp.invoke({
                     "input": prompt_pdf, 
                     "history": [],
-                    "user_info": st.session_state.user_info
+                    "user_info": st.session_state.user_info,
+                    "global_memory": get_onboarding_profile(st.session_state.user_info['id'])
                 }).get("output", "")
                 
                 # Substituir qualquer emoji que ele ainda insista em gerar (cleanup basico)
@@ -327,7 +334,8 @@ if uploaded_file is not None and getattr(st.session_state, "ultimo_arquivo", Non
             resposta = st.session_state.agente.invoke({
                 "input": mensagem_invisivel,
                 "history": [],
-                "user_info": st.session_state.user_info
+                "user_info": st.session_state.user_info,
+                "global_memory": get_onboarding_profile(st.session_state.user_info['id'])
             })
             texto_resposta = resposta.get("output", "Desculpe, deu erro na leitura.")
             st.session_state.mensagens.append({"role": "assistant", "content": texto_resposta})
@@ -453,7 +461,8 @@ if entrada_final:
                 resposta = st.session_state.agente.invoke({
                     "input": entrada_final,
                     "history": historico_ai,
-                    "user_info": st.session_state.user_info
+                    "user_info": st.session_state.user_info,
+                    "global_memory": get_onboarding_profile(st.session_state.user_info['id'])
                 })
                 texto_resposta = resposta.get("output", "Desculpe, não consegui processar isso.")
                 st.markdown(format_text_links(texto_resposta), unsafe_allow_html=True)

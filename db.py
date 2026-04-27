@@ -51,6 +51,12 @@ def init_db():
         cursor.execute("ALTER TABLE users ADD COLUMN objetivo_fin TEXT DEFAULT ''")
     except sqlite3.OperationalError:
         pass
+
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN saldo_cc REAL DEFAULT 0.0")
+        cursor.execute("ALTER TABLE users ADD COLUMN saldo_aplicacoes REAL DEFAULT 0.0")
+    except sqlite3.OperationalError:
+        pass
         
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS improvements (
@@ -143,7 +149,7 @@ def create_user(name, email, password, phone="", address="", username=""):
 def verify_login(identifier, password):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, password, plan_active, onboarded, is_admin, email, last_login_at, renda_mensal, gastos_fixos, objetivo_fin FROM users WHERE email = ? OR username = ?", (identifier, identifier))
+    cursor.execute("SELECT id, name, password, plan_active, onboarded, is_admin, email, last_login_at, renda_mensal, gastos_fixos, objetivo_fin, saldo_cc, saldo_aplicacoes FROM users WHERE email = ? OR username = ?", (identifier, identifier))
     user = cursor.fetchone()
     
     if user:
@@ -171,13 +177,16 @@ def verify_login(identifier, password):
             renda = user[8] if len(user) > 8 else 0.0
             gastos = user[9] if len(user) > 9 else 0.0
             objetivo = user[10] if len(user) > 10 else ""
+            saldo_cc = user[11] if len(user) > 11 else 0.0
+            saldo_aplicacoes = user[12] if len(user) > 12 else 0.0
             cursor.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (user[0],))
             conn.commit()
             conn.close()
             return True, {
                 "id": user[0], "name": user[1], "plan_active": user[3], "onboarded": user[4], 
                 "is_admin": admin_status, "last_login": last_dt,
-                "renda_mensal": renda, "gastos_fixos": gastos, "objetivo_fin": objetivo
+                "renda_mensal": renda, "gastos_fixos": gastos, "objetivo_fin": objetivo,
+                "saldo_cc": saldo_cc, "saldo_aplicacoes": saldo_aplicacoes
             }
             
     conn.close()
@@ -194,6 +203,13 @@ def update_onboarding_data(user_id, renda, gastos, objetivo):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute("UPDATE users SET onboarded = 1, renda_mensal = ?, gastos_fixos = ?, objetivo_fin = ? WHERE id = ?", (renda, gastos, objetivo, user_id))
+    conn.commit()
+    conn.close()
+
+def update_saldos(user_id, saldo_cc, saldo_aplicacoes):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET saldo_cc = ?, saldo_aplicacoes = ? WHERE id = ?", (saldo_cc, saldo_aplicacoes, user_id))
     conn.commit()
     conn.close()
 
