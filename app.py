@@ -3,7 +3,8 @@ import time
 import re
 import unicodedata
 from dotenv import load_dotenv
-from db import init_db, create_user, verify_login, update_onboarding_data
+from db import init_db, create_user, verify_login, update_onboarding_data, get_user_by_id
+from streamlit_cookies_controller import CookieController
 
 load_dotenv(override=True)
 init_db()
@@ -108,11 +109,25 @@ def card_semana(semana, titulo, descricao):
     </div>"""
 
 # ─────────────────────────────────────────────
-# SESSION STATE
+# SESSION STATE E COOKIES
 # ─────────────────────────────────────────────
+controller = CookieController()
+
 for k, v in {"logado": False, "user_info": None, "etapa": "landing", "respostas": {}}.items():
     if k not in st.session_state:
         st.session_state[k] = v
+
+# Auto-login via cookie
+if not st.session_state.logado:
+    try:
+        user_id_cookie = controller.get('agfinance_user_id')
+        if user_id_cookie:
+            user_info = get_user_by_id(int(user_id_cookie))
+            if user_info:
+                st.session_state.logado = True
+                st.session_state.user_info = user_info
+    except Exception:
+        pass
 
 if st.session_state.logado and st.session_state.user_info:
     st.switch_page("pages/2_Chat_Agente.py")
@@ -199,6 +214,7 @@ def _fazer_cadastro(nome, email, senha, key=""):
             user["dados_funil"] = st.session_state.respostas
         st.session_state.logado = True
         st.session_state.user_info = user
+        controller.set('agfinance_user_id', str(user["id"]))
         for key in ["current_session_id", "mensagens"]:
             if key in st.session_state:
                 del st.session_state[key]
@@ -215,6 +231,7 @@ def _form_login(suffix: str = ""):
                 user["dados_funil"] = st.session_state.respostas
             st.session_state.logado = True
             st.session_state.user_info = user
+            controller.set('agfinance_user_id', str(user["id"]))
             for key in ["current_session_id", "mensagens"]:
                 if key in st.session_state:
                     del st.session_state[key]

@@ -192,6 +192,28 @@ def verify_login(identifier, password):
     conn.close()
     return False, None
 
+def get_user_by_id(user_id):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name, plan_active, onboarded, is_admin, email, last_login_at, renda_mensal, gastos_fixos, objetivo_fin, saldo_cc, saldo_aplicacoes FROM users WHERE id = ?", (user_id,))
+    user = cursor.fetchone()
+    conn.close()
+    
+    if user:
+        last_dt = user[6] if len(user) > 6 else None
+        renda = user[7] if len(user) > 7 else 0.0
+        gastos = user[8] if len(user) > 8 else 0.0
+        objetivo = user[9] if len(user) > 9 else ""
+        saldo_cc = user[10] if len(user) > 10 else 0.0
+        saldo_aplicacoes = user[11] if len(user) > 11 else 0.0
+        return {
+            "id": user[0], "name": user[1], "plan_active": user[2], "onboarded": user[3], 
+            "is_admin": user[4], "last_login": last_dt,
+            "renda_mensal": renda, "gastos_fixos": gastos, "objetivo_fin": objetivo,
+            "saldo_cc": saldo_cc, "saldo_aplicacoes": saldo_aplicacoes
+        }
+    return None
+
 def marcar_como_onboarded(user_id):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()

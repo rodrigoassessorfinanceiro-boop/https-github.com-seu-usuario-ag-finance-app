@@ -10,3 +10,6 @@ bcrypt
 psutil
 streamlit-option-menu
 fpdf2
+requests
+flask
+streamlit-cookies-controller

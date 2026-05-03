@@ -66,6 +66,12 @@ with st.sidebar:
     if st.button("🚪 Sair com segurança", use_container_width=True):
         st.session_state.logado = False
         st.session_state.user_info = None
+        try:
+            from streamlit_cookies_controller import CookieController
+            controller = CookieController()
+            controller.remove('agfinance_user_id')
+        except Exception:
+            pass
         for key in ["current_session_id", "mensagens", "chat_initialized"]:
             if key in st.session_state:
                 del st.session_state[key]
@@ -175,10 +181,10 @@ if st.session_state.get("aviso_inatividade"):
     st.balloons()
     st.session_state.aviso_inatividade = False
 
-renda = st.session_state.user_info.get('renda_mensal', 0.0)
-gastos = st.session_state.user_info.get('gastos_fixos', 0.0)
-saldo_cc = st.session_state.user_info.get('saldo_cc', 0.0)
-saldo_aplicacoes = st.session_state.user_info.get('saldo_aplicacoes', 0.0)
+renda = float(st.session_state.user_info.get('renda_mensal') or 0.0)
+gastos = float(st.session_state.user_info.get('gastos_fixos') or 0.0)
+saldo_cc = float(st.session_state.user_info.get('saldo_cc') or 0.0)
+saldo_aplicacoes = float(st.session_state.user_info.get('saldo_aplicacoes') or 0.0)
 obj = st.session_state.user_info.get('objetivo_fin', 'Nenhum')
 saldo_mes = renda - gastos
 
@@ -188,10 +194,10 @@ if renda > 0:
     with st.expander("✏️ Atualizar meus dados do mês"):
         with st.form("form_atualizar_dados"):
             cols = st.columns(4)
-            nova_renda = cols[0].number_input("Receitas (Renda)", value=renda, step=100.0, format="%.2f")
-            novos_gastos = cols[1].number_input("Despesas (Gastos)", value=gastos, step=100.0, format="%.2f")
-            novo_cc = cols[2].number_input("Contas Correntes", value=saldo_cc, step=100.0, format="%.2f")
-            nova_aplicacao = cols[3].number_input("Aplicações", value=saldo_aplicacoes, step=100.0, format="%.2f")
+            nova_renda = cols[0].number_input("Receitas (Renda)", value=float(renda), step=100.0, format="%.2f")
+            novos_gastos = cols[1].number_input("Despesas (Gastos)", value=float(gastos), step=100.0, format="%.2f")
+            novo_cc = cols[2].number_input("Contas Correntes", value=float(saldo_cc), step=100.0, format="%.2f")
+            nova_aplicacao = cols[3].number_input("Aplicações", value=float(saldo_aplicacoes), step=100.0, format="%.2f")
             if st.form_submit_button("Salvar Valores"):
                 update_onboarding_data(st.session_state.user_info['id'], nova_renda, novos_gastos, obj)
                 update_saldos(st.session_state.user_info['id'], novo_cc, nova_aplicacao)
