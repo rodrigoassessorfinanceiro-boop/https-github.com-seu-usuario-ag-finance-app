@@ -5,9 +5,8 @@ import requests
 from dotenv import load_dotenv
 
 # Importar lógicas do nosso app
-from db import DB_FILE, get_onboarding_profile, add_message, get_session_messages
+from db import get_onboarding_profile, add_message, get_session_messages, get_user_by_phone, get_or_create_whatsapp_session
 from agent import criar_agente
-import sqlite3
 
 load_dotenv(override=True)
 
@@ -18,23 +17,6 @@ logger = logging.getLogger(__name__)
 WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN")
 VERIFY_TOKEN = os.environ.get("WHATSAPP_VERIFY_TOKEN", "agfinance_secreto")
 PHONE_NUMBER_ID = os.environ.get("WHATSAPP_PHONE_NUMBER_ID")
-
-def get_user_by_phone(phone: str):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    # Tenta buscar pelo número exato ou com/sem o '+'
-    cursor.execute("SELECT id, name, renda_mensal, gastos_fixos, objetivo_fin FROM users WHERE phone LIKE ?", (f"%{phone}%",))
-    user = cursor.fetchone()
-    conn.close()
-    if user:
-        return {
-            "id": user[0],
-            "name": user[1],
-            "renda_mensal": user[2],
-            "gastos_fixos": user[3],
-            "objetivo_fin": user[4]
-        }
-    return None
 
 def send_whatsapp_message(to_phone: str, text: str):
     if not WHATSAPP_TOKEN or not PHONE_NUMBER_ID:
@@ -98,17 +80,7 @@ def webhook_events():
                                 continue
                                 
                             # 2. Buscar ou Criar Sessão do WhatsApp
-                            conn = sqlite3.connect(DB_FILE)
-                            cursor = conn.cursor()
-                            cursor.execute("SELECT id FROM chat_sessions WHERE user_id = ? AND title = 'WhatsApp' ORDER BY id DESC LIMIT 1", (user_info["id"],))
-                            sess = cursor.fetchone()
-                            if sess:
-                                session_id = sess[0]
-                            else:
-                                cursor.execute("INSERT INTO chat_sessions (user_id, title) VALUES (?, ?)", (user_info["id"], "WhatsApp"))
-                                session_id = cursor.lastrowid
-                                conn.commit()
-                            conn.close()
+                            session_id = get_or_create_whatsapp_session(user_info["id"])
                             
                             # 3. Salvar mensagem do usuário
                             add_message(session_id, user_info["id"], "user", text_body)

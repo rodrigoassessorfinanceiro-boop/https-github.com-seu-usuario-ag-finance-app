@@ -13,3 +13,4 @@ fpdf2
 requests
 flask
 streamlit-cookies-controller
+psycopg2-binary

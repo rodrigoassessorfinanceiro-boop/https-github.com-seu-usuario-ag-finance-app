@@ -3,163 +3,251 @@ import hashlib
 import bcrypt
 import os
 
-DB_FILE = "users.db"
+DB_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_FILE = os.path.join(DB_DIR, "users.db")
+
+
+def get_connection():
+    db_url = os.environ.get("DATABASE_URL")
+    if db_url:
+        import psycopg2
+        return psycopg2.connect(db_url), True
+    else:
+        return sqlite3.connect(DB_FILE), False
+
 
 def init_db():
-    conn = sqlite3.connect(DB_FILE)
+    conn, is_pg = get_connection()
     cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            plan_active BOOLEAN NOT NULL,
-            onboarded BOOLEAN NOT NULL DEFAULT 0,
-            is_admin BOOLEAN NOT NULL DEFAULT 0
-        )
-    ''')
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN onboarded BOOLEAN NOT NULL DEFAULT 0")
-    except sqlite3.OperationalError:
-        pass # Coluna já existe
-        
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT 0")
-    except sqlite3.OperationalError:
-        pass
-        
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN phone TEXT")
-        cursor.execute("ALTER TABLE users ADD COLUMN address TEXT")
-    except sqlite3.OperationalError:
-        pass
-        
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN username TEXT")
-    except sqlite3.OperationalError:
-        pass
-        
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP")
-    except sqlite3.OperationalError:
-        pass
-        
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN renda_mensal REAL DEFAULT 0.0")
-        cursor.execute("ALTER TABLE users ADD COLUMN gastos_fixos REAL DEFAULT 0.0")
-        cursor.execute("ALTER TABLE users ADD COLUMN objetivo_fin TEXT DEFAULT ''")
-    except sqlite3.OperationalError:
-        pass
-
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN saldo_cc REAL DEFAULT 0.0")
-        cursor.execute("ALTER TABLE users ADD COLUMN saldo_aplicacoes REAL DEFAULT 0.0")
-    except sqlite3.OperationalError:
-        pass
-        
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS improvements (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'Pendente'
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS chat_sessions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS chat_messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id INTEGER,
-            user_id INTEGER NOT NULL,
-            role TEXT NOT NULL,
-            content TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id),
-            FOREIGN KEY (session_id) REFERENCES chat_sessions (id)
-        )
-    ''')
-    try:
-        cursor.execute("ALTER TABLE chat_messages ADD COLUMN session_id INTEGER")
-        cursor.execute("SELECT DISTINCT user_id FROM chat_messages WHERE session_id IS NULL")
-        orphans = cursor.fetchall()
-        for orph in orphans:
-            uid = orph[0]
-            cursor.execute("INSERT INTO chat_sessions (user_id, title) VALUES (?, ?)", (uid, "Papo Original"))
-            new_sess = cursor.lastrowid
-            cursor.execute("UPDATE chat_messages SET session_id = ? WHERE user_id = ? AND session_id IS NULL", (new_sess, uid))
-    except sqlite3.OperationalError:
-        pass
-        
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS usage_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            activity_type TEXT NOT NULL,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
     
+    if is_pg:
+        # PostgreSQL
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                plan_active BOOLEAN NOT NULL,
+                onboarded BOOLEAN NOT NULL DEFAULT FALSE,
+                is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+                phone TEXT,
+                address TEXT,
+                username TEXT,
+                last_login_at TIMESTAMP,
+                renda_mensal REAL DEFAULT 0.0,
+                gastos_fixos REAL DEFAULT 0.0,
+                objetivo_fin TEXT DEFAULT '',
+                saldo_cc REAL DEFAULT 0.0,
+                saldo_aplicacoes REAL DEFAULT 0.0
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS improvements (
+                id SERIAL PRIMARY KEY,
+                title TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'Pendente'
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS chat_sessions (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id SERIAL PRIMARY KEY,
+                session_id INTEGER,
+                user_id INTEGER NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id),
+                FOREIGN KEY (session_id) REFERENCES chat_sessions (id)
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS usage_logs (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER,
+                activity_type TEXT NOT NULL,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+    else:
+        # SQLite
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                plan_active BOOLEAN NOT NULL,
+                onboarded BOOLEAN NOT NULL DEFAULT 0,
+                is_admin BOOLEAN NOT NULL DEFAULT 0
+            )
+        ''')
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN onboarded BOOLEAN NOT NULL DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+            
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+            
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN phone TEXT")
+            cursor.execute("ALTER TABLE users ADD COLUMN address TEXT")
+        except sqlite3.OperationalError:
+            pass
+            
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN username TEXT")
+        except sqlite3.OperationalError:
+            pass
+            
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP")
+        except sqlite3.OperationalError:
+            pass
+            
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN renda_mensal REAL DEFAULT 0.0")
+            cursor.execute("ALTER TABLE users ADD COLUMN gastos_fixos REAL DEFAULT 0.0")
+            cursor.execute("ALTER TABLE users ADD COLUMN objetivo_fin TEXT DEFAULT ''")
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN saldo_cc REAL DEFAULT 0.0")
+            cursor.execute("ALTER TABLE users ADD COLUMN saldo_aplicacoes REAL DEFAULT 0.0")
+        except sqlite3.OperationalError:
+            pass
+            
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS improvements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'Pendente'
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS chat_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER,
+                user_id INTEGER NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id),
+                FOREIGN KEY (session_id) REFERENCES chat_sessions (id)
+            )
+        ''')
+        try:
+            cursor.execute("ALTER TABLE chat_messages ADD COLUMN session_id INTEGER")
+            cursor.execute("SELECT DISTINCT user_id FROM chat_messages WHERE session_id IS NULL")
+            orphans = cursor.fetchall()
+            for orph in orphans:
+                uid = orph[0]
+                cursor.execute("INSERT INTO chat_sessions (user_id, title) VALUES (?, ?)", (uid, "Papo Original"))
+                new_sess = cursor.lastrowid
+                cursor.execute("UPDATE chat_messages SET session_id = ? WHERE user_id = ? AND session_id IS NULL", (new_sess, uid))
+        except sqlite3.OperationalError:
+            pass
+            
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS usage_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                activity_type TEXT NOT NULL,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
     conn.commit()
     conn.close()
+
 
 def _hash_password(password):
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
+
 def create_user(name, email, password, phone="", address="", username=""):
+    conn, is_pg = get_connection()
+    cursor = conn.cursor()
     try:
-        conn = sqlite3.connect(DB_FILE)
-        cursor = conn.cursor()
-        
         if username:
             base_username = username
             counter = 1
             while True:
-                cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+                if is_pg:
+                    cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+                else:
+                    cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
                 if cursor.fetchone():
                     username = f"{base_username}{counter}"
                     counter += 1
                 else:
                     break
         
-        # Atribuir como admin automaticamente se for o email de env
         admin_auth_mail = os.environ.get("ADMIN_EMAIL", "rodrigo@agfinance.com")
         is_admin = True if email.lower().strip() == admin_auth_mail.lower().strip() else False
 
-        cursor.execute(
-            "INSERT INTO users (name, email, password, plan_active, onboarded, is_admin, phone, address, username) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (name, email, _hash_password(password), True, False, is_admin, phone, address, username)
-        )
+        if is_pg:
+            cursor.execute(
+                "INSERT INTO users (name, email, password, plan_active, onboarded, is_admin, phone, address, username) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (name, email, _hash_password(password), True, False, is_admin, phone, address, username)
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO users (name, email, password, plan_active, onboarded, is_admin, phone, address, username) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (name, email, _hash_password(password), True, False, is_admin, phone, address, username)
+            )
         conn.commit()
         conn.close()
         return True, "Usuário criado com sucesso!"
-    except sqlite3.IntegrityError:
-        return False, "Este email já está cadastrado."
     except Exception as e:
+        conn.close()
+        err_msg = str(e).lower()
+        if "unique" in err_msg or "duplicate" in err_msg:
+            return False, "Este email já está cadastrado."
         return False, f"Erro ao criar usuário: {str(e)}"
 
+
 def verify_login(identifier, password):
-    conn = sqlite3.connect(DB_FILE)
+    conn, is_pg = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, password, plan_active, onboarded, is_admin, email, last_login_at, renda_mensal, gastos_fixos, objetivo_fin, saldo_cc, saldo_aplicacoes FROM users WHERE email = ? OR username = ?", (identifier, identifier))
+    if is_pg:
+        cursor.execute("SELECT id, name, password, plan_active, onboarded, is_admin, email, last_login_at, renda_mensal, gastos_fixos, objetivo_fin, saldo_cc, saldo_aplicacoes FROM users WHERE email = %s OR username = %s", (identifier, identifier))
+    else:
+        cursor.execute("SELECT id, name, password, plan_active, onboarded, is_admin, email, last_login_at, renda_mensal, gastos_fixos, objetivo_fin, saldo_cc, saldo_aplicacoes FROM users WHERE email = ? OR username = ?", (identifier, identifier))
     user = cursor.fetchone()
     
     if user:
         stored_hash = user[2]
-        
-        # Check privileges
         admin_status = user[5]
         admin_mail = os.environ.get("ADMIN_EMAIL", "rodrigo@agfinance.com")
         if user[6].lower().strip() == admin_mail.lower().strip() and not admin_status:
-            cursor.execute("UPDATE users SET is_admin = 1 WHERE id = ?", (user[0],))
+            if is_pg:
+                cursor.execute("UPDATE users SET is_admin = TRUE WHERE id = %s", (user[0],))
+            else:
+                cursor.execute("UPDATE users SET is_admin = 1 WHERE id = ?", (user[0],))
             conn.commit()
             admin_status = 1
             
@@ -179,7 +267,10 @@ def verify_login(identifier, password):
             objetivo = user[10] if len(user) > 10 else ""
             saldo_cc = user[11] if len(user) > 11 else 0.0
             saldo_aplicacoes = user[12] if len(user) > 12 else 0.0
-            cursor.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (user[0],))
+            if is_pg:
+                cursor.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = %s", (user[0],))
+            else:
+                cursor.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (user[0],))
             conn.commit()
             conn.close()
             return True, {
@@ -192,10 +283,14 @@ def verify_login(identifier, password):
     conn.close()
     return False, None
 
+
 def get_user_by_id(user_id):
-    conn = sqlite3.connect(DB_FILE)
+    conn, is_pg = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, plan_active, onboarded, is_admin, email, last_login_at, renda_mensal, gastos_fixos, objetivo_fin, saldo_cc, saldo_aplicacoes FROM users WHERE id = ?", (user_id,))
+    if is_pg:
+        cursor.execute("SELECT id, name, plan_active, onboarded, is_admin, email, last_login_at, renda_mensal, gastos_fixos, objetivo_fin, saldo_cc, saldo_aplicacoes FROM users WHERE id = %s", (user_id,))
+    else:
+        cursor.execute("SELECT id, name, plan_active, onboarded, is_admin, email, last_login_at, renda_mensal, gastos_fixos, objetivo_fin, saldo_cc, saldo_aplicacoes FROM users WHERE id = ?", (user_id,))
     user = cursor.fetchone()
     conn.close()
     
@@ -214,44 +309,66 @@ def get_user_by_id(user_id):
         }
     return None
 
+
 def marcar_como_onboarded(user_id):
-    conn = sqlite3.connect(DB_FILE)
+    conn, is_pg = get_connection()
     cursor = conn.cursor()
-    cursor.execute("UPDATE users SET onboarded = 1 WHERE id = ?", (user_id,))
+    if is_pg:
+        cursor.execute("UPDATE users SET onboarded = TRUE WHERE id = %s", (user_id,))
+    else:
+        cursor.execute("UPDATE users SET onboarded = 1 WHERE id = ?", (user_id,))
     conn.commit()
     conn.close()
+
 
 def update_onboarding_data(user_id, renda, gastos, objetivo):
-    conn = sqlite3.connect(DB_FILE)
+    conn, is_pg = get_connection()
     cursor = conn.cursor()
-    cursor.execute("UPDATE users SET onboarded = 1, renda_mensal = ?, gastos_fixos = ?, objetivo_fin = ? WHERE id = ?", (renda, gastos, objetivo, user_id))
+    if is_pg:
+        cursor.execute("UPDATE users SET onboarded = TRUE, renda_mensal = %s, gastos_fixos = %s, objetivo_fin = %s WHERE id = %s", (renda, gastos, objetivo, user_id))
+    else:
+        cursor.execute("UPDATE users SET onboarded = 1, renda_mensal = ?, gastos_fixos = ?, objetivo_fin = ? WHERE id = ?", (renda, gastos, objetivo, user_id))
     conn.commit()
     conn.close()
+
 
 def update_saldos(user_id, saldo_cc, saldo_aplicacoes):
-    conn = sqlite3.connect(DB_FILE)
+    conn, is_pg = get_connection()
     cursor = conn.cursor()
-    cursor.execute("UPDATE users SET saldo_cc = ?, saldo_aplicacoes = ? WHERE id = ?", (saldo_cc, saldo_aplicacoes, user_id))
+    if is_pg:
+        cursor.execute("UPDATE users SET saldo_cc = %s, saldo_aplicacoes = %s WHERE id = %s", (saldo_cc, saldo_aplicacoes, user_id))
+    else:
+        cursor.execute("UPDATE users SET saldo_cc = ?, saldo_aplicacoes = ? WHERE id = ?", (saldo_cc, saldo_aplicacoes, user_id))
     conn.commit()
     conn.close()
 
+
 def delete_user(user_id):
-    conn = sqlite3.connect(DB_FILE)
+    conn, is_pg = get_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM chat_messages WHERE user_id = ?", (user_id,))
-    cursor.execute("DELETE FROM chat_sessions WHERE user_id = ?", (user_id,))
-    cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    if is_pg:
+        cursor.execute("DELETE FROM chat_messages WHERE user_id = %s", (user_id,))
+        cursor.execute("DELETE FROM chat_sessions WHERE user_id = %s", (user_id,))
+        cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+    else:
+        cursor.execute("DELETE FROM chat_messages WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM chat_sessions WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
     conn.commit()
     conn.close()
+
 
 # METODOS DE GESTAO ADMIN
 def get_dashboard_metrics():
-    conn = sqlite3.connect(DB_FILE)
+    conn, is_pg = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM users")
     total_users = cursor.fetchone()[0]
     
-    cursor.execute("SELECT COUNT(*) FROM users WHERE onboarded = 1")
+    if is_pg:
+        cursor.execute("SELECT COUNT(*) FROM users WHERE onboarded = TRUE")
+    else:
+        cursor.execute("SELECT COUNT(*) FROM users WHERE onboarded = 1")
     onboarded_users = cursor.fetchone()[0]
     
     cursor.execute("SELECT id, name, email, plan_active, onboarded, is_admin, phone, address, username FROM users ORDER BY id DESC")
@@ -259,64 +376,94 @@ def get_dashboard_metrics():
     conn.close()
     return total_users, onboarded_users, all_users
 
+
 def add_improvement(title):
-    conn = sqlite3.connect(DB_FILE)
+    conn, is_pg = get_connection()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO improvements (title, status) VALUES (?, 'Pendente')", (title,))
+    if is_pg:
+        cursor.execute("INSERT INTO improvements (title, status) VALUES (%s, 'Pendente')", (title,))
+    else:
+        cursor.execute("INSERT INTO improvements (title, status) VALUES (?, 'Pendente')", (title,))
     conn.commit()
     conn.close()
 
+
 def get_improvements():
-    conn = sqlite3.connect(DB_FILE)
+    conn, is_pg = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT id, title, status FROM improvements ORDER BY id DESC")
     items = cursor.fetchall()
     conn.close()
     return items
 
+
 def delete_improvement(imp_id):
-    conn = sqlite3.connect(DB_FILE)
+    conn, is_pg = get_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM improvements WHERE id = ?", (imp_id,))
+    if is_pg:
+        cursor.execute("DELETE FROM improvements WHERE id = %s", (imp_id,))
+    else:
+        cursor.execute("DELETE FROM improvements WHERE id = ?", (imp_id,))
     conn.commit()
     conn.close()
+
 
 def toggle_improvement_status(imp_id, current_status):
     new_status = 'Concluído' if current_status == 'Pendente' else 'Pendente'
-    conn = sqlite3.connect(DB_FILE)
+    conn, is_pg = get_connection()
     cursor = conn.cursor()
-    cursor.execute("UPDATE improvements SET status = ? WHERE id = ?", (new_status, imp_id))
+    if is_pg:
+        cursor.execute("UPDATE improvements SET status = %s WHERE id = %s", (new_status, imp_id))
+    else:
+        cursor.execute("UPDATE improvements SET status = ? WHERE id = ?", (new_status, imp_id))
     conn.commit()
     conn.close()
 
+
 # METODOS DE MEMÓRIA (HISTÓRICO DO CHAT)
 def create_session(user_id, title):
-    conn = sqlite3.connect(DB_FILE)
+    conn, is_pg = get_connection()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO chat_sessions (user_id, title) VALUES (?, ?)", (user_id, title))
-    sid = cursor.lastrowid
+    if is_pg:
+        cursor.execute("INSERT INTO chat_sessions (user_id, title) VALUES (%s, %s) RETURNING id", (user_id, title))
+        sid = cursor.fetchone()[0]
+    else:
+        cursor.execute("INSERT INTO chat_sessions (user_id, title) VALUES (?, ?)", (user_id, title))
+        sid = cursor.lastrowid
     conn.commit()
     conn.close()
     return sid
 
+
 def get_user_sessions(user_id):
-    conn = sqlite3.connect(DB_FILE)
+    conn, is_pg = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, title FROM chat_sessions WHERE user_id = ? ORDER BY id DESC", (user_id,))
+    if is_pg:
+        cursor.execute("SELECT id, title FROM chat_sessions WHERE user_id = %s ORDER BY id DESC", (user_id,))
+    else:
+        cursor.execute("SELECT id, title FROM chat_sessions WHERE user_id = ? ORDER BY id DESC", (user_id,))
     s = cursor.fetchall()
     conn.close()
     return s
 
+
 def get_onboarding_profile(user_id):
-    conn = sqlite3.connect(DB_FILE)
+    conn, is_pg = get_connection()
     cursor = conn.cursor()
-    # Busca qualquer texto longo (onde o usuário explicou finanças) ou uploads de extrato
-    cursor.execute("""
-        SELECT content FROM chat_messages 
-        WHERE user_id = ? AND role = 'user' 
-        AND (content LIKE '%panorama inicial%' OR content LIKE '%extrato financeiro%' OR length(content) > 100)
-        ORDER BY id ASC LIMIT 3
-    """, (user_id,))
+    if is_pg:
+        cursor.execute("""
+            SELECT content FROM chat_messages 
+            WHERE user_id = %s AND role = 'user' 
+            AND (content LIKE '%%panorama inicial%%' OR content LIKE '%%extrato financeiro%%' OR length(content) > 100)
+            ORDER BY id ASC LIMIT 3
+        """, (user_id,))
+    else:
+        cursor.execute("""
+            SELECT content FROM chat_messages 
+            WHERE user_id = ? AND role = 'user' 
+            AND (content LIKE '%panorama inicial%' OR content LIKE '%extrato financeiro%' OR length(content) > 100)
+            ORDER BY id ASC LIMIT 3
+        """, (user_id,))
     recs = cursor.fetchall()
     conn.close()
     
@@ -325,31 +472,44 @@ def get_onboarding_profile(user_id):
         return "MEMÓRIA GLOBAL DO USUÁRIO (Contexto de Gastos e Faturas Anteriores):\n\n" + "\n\n---\n\n".join(textos)
     return ""
 
+
 def add_message(session_id, user_id, role, content):
-    conn = sqlite3.connect(DB_FILE)
+    conn, is_pg = get_connection()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO chat_messages (session_id, user_id, role, content) VALUES (?, ?, ?, ?)", (session_id, user_id, role, content))
+    if is_pg:
+        cursor.execute("INSERT INTO chat_messages (session_id, user_id, role, content) VALUES (%s, %s, %s, %s)", (session_id, user_id, role, content))
+    else:
+        cursor.execute("INSERT INTO chat_messages (session_id, user_id, role, content) VALUES (?, ?, ?, ?)", (session_id, user_id, role, content))
     conn.commit()
     conn.close()
 
+
 def get_session_messages(session_id):
-    conn = sqlite3.connect(DB_FILE)
+    conn, is_pg = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT role, content FROM chat_messages WHERE session_id = ? ORDER BY id ASC", (session_id,))
+    if is_pg:
+        cursor.execute("SELECT role, content FROM chat_messages WHERE session_id = %s ORDER BY id ASC", (session_id,))
+    else:
+        cursor.execute("SELECT role, content FROM chat_messages WHERE session_id = ? ORDER BY id ASC", (session_id,))
     registros = cursor.fetchall()
     conn.close()
     return [{"role": r[0], "content": r[1]} for r in registros]
 
+
 # METODOS DE MONITORAMENTO DA PLATAFORMA
 def log_activity(user_id, activity_type):
-    conn = sqlite3.connect(DB_FILE)
+    conn, is_pg = get_connection()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO usage_logs (user_id, activity_type) VALUES (?, ?)", (user_id, activity_type))
+    if is_pg:
+        cursor.execute("INSERT INTO usage_logs (user_id, activity_type) VALUES (%s, %s)", (user_id, activity_type))
+    else:
+        cursor.execute("INSERT INTO usage_logs (user_id, activity_type) VALUES (?, ?)", (user_id, activity_type))
     conn.commit()
     conn.close()
 
+
 def get_top_activities():
-    conn = sqlite3.connect(DB_FILE)
+    conn, is_pg = get_connection()
     cursor = conn.cursor()
     cursor.execute('''
         SELECT activity_type, COUNT(*) as count 
@@ -362,4 +522,48 @@ def get_top_activities():
     conn.close()
     return results
 
-# Force reload
+
+# METODOS ADICIONADOS PARA SUPORTE WHATSAPP
+def get_user_by_phone(phone: str):
+    conn, is_pg = get_connection()
+    cursor = conn.cursor()
+    if is_pg:
+        cursor.execute("SELECT id, name, renda_mensal, gastos_fixos, objetivo_fin FROM users WHERE phone LIKE %s", (f"%{phone}%",))
+    else:
+        cursor.execute("SELECT id, name, renda_mensal, gastos_fixos, objetivo_fin FROM users WHERE phone LIKE ?", (f"%{phone}%",))
+    user = cursor.fetchone()
+    conn.close()
+    if user:
+        return {
+            "id": user[0],
+            "name": user[1],
+            "renda_mensal": user[2],
+            "gastos_fixos": user[3],
+            "objetivo_fin": user[4]
+        }
+    return None
+
+
+def get_or_create_whatsapp_session(user_id: int) -> int:
+    conn, is_pg = get_connection()
+    cursor = conn.cursor()
+    if is_pg:
+        cursor.execute("SELECT id FROM chat_sessions WHERE user_id = %s AND title = 'WhatsApp' ORDER BY id DESC LIMIT 1", (user_id,))
+        sess = cursor.fetchone()
+        if sess:
+            session_id = sess[0]
+        else:
+            cursor.execute("INSERT INTO chat_sessions (user_id, title) VALUES (%s, 'WhatsApp') RETURNING id", (user_id,))
+            session_id = cursor.fetchone()[0]
+            conn.commit()
+    else:
+        cursor.execute("SELECT id FROM chat_sessions WHERE user_id = ? AND title = 'WhatsApp' ORDER BY id DESC LIMIT 1", (user_id,))
+        sess = cursor.fetchone()
+        if sess:
+            session_id = sess[0]
+        else:
+            cursor.execute("INSERT INTO chat_sessions (user_id, title) VALUES (?, 'WhatsApp')", (user_id,))
+            session_id = cursor.lastrowid
+            conn.commit()
+    conn.close()
+    return session_id
